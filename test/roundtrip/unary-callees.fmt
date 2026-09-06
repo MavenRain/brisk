@@ -1,0 +1,5 @@
+let a = (scope f) 1
+let b = (spawn f) 1
+let c = (join f) 1
+let d = (fold_row f) 1
+let e = (.~ f) 1

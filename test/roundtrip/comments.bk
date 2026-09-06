@@ -1,0 +1,4 @@
+(* a nested comment (* inside another *) between two declarations *)
+let a = 1
+(* a (* nested *) comment *)
+let b = (* a (* nested *) comment inside an expression *) 2

@@ -3,10 +3,11 @@
 # The M0 gate battery.  Example:
 #   zsh /Users/oobi/Documents/brisk/dev/gates.sh
 #
-# At Stage 0 exactly two legs run, HOUSE and DENOMINATORS, because they
-# are the two legs of the stage row (M0-PLAN.md:277).  Every other leg of
-# plan section 9 is absent, not stubbed:  a leg with nothing to check is
-# the vacuous pass that HALT-E-2 names.  Each stage adds its own legs.
+# At Stage A exactly four legs run, BUILD, HOUSE, PARSE and DENOMINATORS,
+# because they are the legs of the stage row (M0-PLAN.md:278).  Every
+# other leg of plan section 9 is absent, not stubbed:  a leg with nothing
+# to check is the vacuous pass that HALT-E-2 names.  Each stage adds its
+# own legs.
 #
 # Each leg prints one PASS or FAIL line.  A FAIL adds the leg's captured
 # output under its line.  Every leg runs even when an earlier one failed,
@@ -117,6 +118,62 @@ leg_house () {
   return 1
 }
 
+# BUILD (M0-PLAN.md:245).  The whole tree builds under the pinned switch
+# with warnings as errors, and the leg passes on exit 0 with no output at
+# all, so a warning that dune prints is a failure.
+leg_build () {
+  local out code
+  out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
+  code=$?
+  if [[ $code -eq 0 && -z $out ]]; then
+    print -r -- "PASS BUILD"
+    return 0
+  fi
+  print -r -- "build exit=$code"
+  print -r -- "$out"
+  print -r -- "FAIL BUILD"
+  return 1
+}
+
+# PARSE (M0-PLAN.md:248).  The leg builds first, so one leg alone is
+# honest, then runs test/parse.exe over the round-trip fixtures, the
+# positive fixtures of the later stages, the negative twins and the
+# spine.  A list shorter than two entries is a failure, because an empty
+# glob would otherwise pass with nothing checked.
+leg_parse () {
+  local out code line n
+  out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
+  code=$?
+  if [[ $code -ne 0 || -n $out ]]; then
+    print -r -- "build exit=$code"
+    print -r -- "$out"
+    print -r -- "FAIL PARSE"
+    return 1
+  fi
+  local files=(
+    $ROOT/test/roundtrip/*.bk(N)
+    $ROOT/test/pos/*.bk(N)
+    $ROOT/test/neg/parse-*.bk(N)
+    $ROOT/examples/m0-spine.bk
+  )
+  if [[ ${#files} -lt 2 ]]; then
+    print -r -- "parse fixtures=${#files}"
+    print -r -- "FAIL PARSE"
+    return 1
+  fi
+  out=$($ROOT/_build/default/test/parse.exe $files 2>&1)
+  code=$?
+  print -r -- "$out"
+  line=$(print -r -- "$out" | rg -- '^PARSE files=')
+  n=$(field "$line" files)
+  if [[ $code -eq 0 && -n $n ]]; then
+    print -r -- "PASS PARSE fixtures=$n"
+    return 0
+  fi
+  print -r -- "FAIL PARSE"
+  return 1
+}
+
 # DENOMINATORS (M0-PLAN.md:253).  The sidecar holds the record, the
 # record holds every key, dev/denominators.sh re-measures the raw figure
 # in this run, its DENOM corpus digest, file count and line count equal
@@ -220,7 +277,9 @@ print(len(d["brisk_corpus"]["files"]))' $json 2>&1)
 # made after this dispatch, so a --leg run leaves no directory behind (D-0-10).
 if [[ $# -ge 2 && $1 == "--leg" ]]; then
   case $2 in
+    build) leg_build; exit $? ;;
     house) leg_house; exit $? ;;
+    parse) leg_parse; exit $? ;;
     denominators) leg_denominators; exit $? ;;
     *) print -r -- "gates: unknown leg $2"; exit 64 ;;
   esac
@@ -269,8 +328,10 @@ leg () {
   return 1
 }
 
-# The two legs of the Stage 0 row, in the order of plan section 9.
+# The four legs of the Stage A row, in the order of plan section 9.
+leg MED BUILD SELF zsh $SELF --leg build
 leg FAST HOUSE SELF zsh $SELF --leg house
+leg MED PARSE SELF zsh $SELF --leg parse
 leg SLOW DENOMINATORS SELF zsh $SELF --leg denominators
 
 print -r -- ""

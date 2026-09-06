@@ -1,0 +1,5 @@
+let id x = x
+let first x y = x
+let hole _ = 0
+let two = f a b
+let three = g a b c

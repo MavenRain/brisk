@@ -1,0 +1,13 @@
+let a = 1 + 2 * 3
+let b = (1 + 2) * 3
+let c = p || q && r
+let d = (p || q) && r
+let e = 1 + 2 == 3
+let f = 0 - 5
+let g = "a" ^ "b"
+let h = 7 % 2 / 1
+let i = a <= b
+let j = a < b
+let k = a > b
+let l = a != b
+let m = a >= b

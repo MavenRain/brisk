@@ -111,3 +111,146 @@ correction C3).
 
 The three checks of the brief section 5 ran on scratch copies, and all three
 mutants died.  `dev/MUTATION-LOG.md` holds the commands and the catching legs.
+
+## Stage A (2026-09-06)
+
+Stage A delivers the source tree of M0-PLAN.md section 3 with the front end
+only: the skeleton, `lib/` with the four value modules, `surface/` with the
+whole surface AST, the lexer, the parser and the canonical printer, the
+`test/parse.exe` round-trip checker, twenty round-trip fixtures with their
+goldens, three Parse twins with their goldens, and the BUILD and PARSE legs of
+`dev/gates.sh`.  No `types.ml`, no inference, no VM and no driver: those are
+Stages B to E.  The repository stays on branch main at 979a71a with one commit;
+the user commits this stage.  The tot pin stays at 6d0d48d with porcelain 0, and
+Stage A read nothing from it, because the grammar, the AST and the printer are a
+rewrite.
+
+### Deliverables
+
+| File | What it does |
+| --- | --- |
+| `dune-project` | `(lang dune 3.24)` and `(name brisk)`. |
+| `.gitignore` | `_build/`, `*.install` and `*.bkc`, adapted from kanon. |
+| `LICENSE-MIT`, `LICENSE-APACHE` | Copied from kanon, one provenance row each. |
+| `README.md` | What brisk is, the layout, the four gate legs, and the rule that the user commits. |
+| `SPEC.md` | The layout, the lexical rules, the grammar, the operator table, the refusal table with the concrete syntax column, the canonical print form and the error line form. |
+| `lib/dune`, `surface/dune`, `test/dune` | The two libraries and the test executable, each with `(flags (:standard -warn-error +a))`. |
+| `lib/ident.ml`, `lib/label.ml`, `lib/literal.ml` | The three value modules, with `Label.occ` for the occurrence index of R-M0-4. |
+| `lib/error.ml` | `pos`, `span`, the `Parse` arm and `to_line`, which prints `NAME L:C-L:C text`. |
+| `surface/ast.ml` | The surface grammar declared whole: every row of the plan section 4 table has an arm. |
+| `surface/lexer.ml` | One pass, no mutable state, nested comments, spans on every token, and a result instead of an exception. |
+| `surface/parser.ml` | Recursive descent with a precedence climb for the operators, and one Parse error with a span for every failure. |
+| `surface/print.ml` | The canonical form: one declaration per line, the fewest parentheses that the levels need, and the four string escapes. |
+| `test/parse.ml` | The round-trip checker of the brief section 3.7, with the `PARSE-EMPTY` guard against a vacuous pass. |
+| `test/roundtrip/*.bk` and `*.fmt` | Twenty fixtures with their goldens. |
+| `test/neg/parse-*.bk` and `*.err` | The three Parse twins with their goldens. |
+| `dev/gates.sh` | Grown by the BUILD and PARSE legs, in the plan section 9 order. |
+| `dev/PROVENANCE.md` | Three new rows and the gates.sh row updated. |
+
+### Gates
+
+Every row is a judge rerun of 2026-09-06.  The evidence is the printed line of
+that rerun, not the builder report.
+
+| Id | Result | Evidence |
+| --- | --- | --- |
+| SA-G1 | PASS | `zsh dev/pin-dune.sh dune build @all` prints `build exit=0 bytes=0`, so it exits 0 with no output at all. |
+| SA-G2 | PASS | The eighteen named paths all exist, `fd -e bk . test/roundtrip` counts `roundtrip bk=20` with a `.fmt` sibling for each, `fd -g 'parse-*.bk' . test/neg` counts `neg bk=3` with a `.err` sibling for each, and the missing count is `G2 missing=0`. |
+| SA-G3 | PASS | `G3 arms-missing=0 of 29`: Lit, Var, Lam, App, Let, LetRec, If, Rec, RecExt, RecRes, Sel, Take, Inj, Match, Ann, Use, Handle, Scope, Spawn, Join, Quote, Splice, FoldRow, DLet, DLetRec, DResource, DEffect, TArrow and TCode all appear in `surface/ast.ml`. |
+| SA-G4 | PASS | `zsh dev/house.sh` prints `HOUSE no-exception OK`, `HOUSE no-wildcard-no-partial OK`, `HOUSE no-mutable-state OK`, `HOUSE no-bool-match-no-loop OK`, `HOUSE no-em-dash OK` and `HOUSE OK`, with `house exit=0`. |
+| SA-G5 | PASS | `zsh dev/gates.sh --leg parse` prints `PARSE files=24 ok=24 fail=0` then `PASS PARSE fixtures=24`, with `leg parse exit=0`.  24 is at least 24. |
+| SA-G6 | PASS | `_build/default/test/parse.exe` with no argument prints `PARSE-EMPTY` and exits 2.  On a scratch copy of the pair `records.bk` and `records.fmt` with byte 5 of the golden flipped to `X`, the exe prints one line, `PARSE-FAIL .../records.bk the printed form differs from the golden`, then `PARSE files=1 ok=0 fail=1`, and exits 1.  The repository files were not touched. |
+| SA-G7 | PASS | `parse-arrow.bk` prints `PARSE files=1 ok=1 fail=0` at exit 0 with the golden `Parse 2:1-2:1`;  `parse-comment.bk` the same with the golden `Parse 2:1-2:3`;  `parse-paren.bk` the same with the golden `Parse 2:1-2:1`.  The first word of every golden is `Parse`. |
+| SA-G8 | PASS | `zsh dev/gates.sh` prints `PASS BUILD`, `PASS HOUSE`, `PARSE files=24 ok=24 fail=0` with `PASS PARSE fixtures=24`, `DENOM raw_ms_per_kloc=222.632 median_ms=1107.816 lines=4976 files=19` with `PASS DENOMINATORS raw_ms_per_kloc=222.632`, then `MEASURE BUILD tier=MED elapsed_ms=84.825 exit=0`, `MEASURE HOUSE tier=FAST elapsed_ms=81.409 exit=0`, `MEASURE PARSE tier=MED elapsed_ms=74.226 exit=0` and `MEASURE DENOMINATORS tier=SLOW elapsed_ms=8381.955 exit=0`, then `GATES-OK`, with `gates exit=0`.  `fd -t d -g 'brisk-gates-*'` under `TMPDIR=/tmp/claude-501` counts `leftovers-before=0` and `leftovers-after=0`. |
+| SA-G9 | PASS | `rg -c -e U+2014 --glob '!.git' --glob '!_build'` over the repository exits 1, which is the no-hit exit.  The em-dash count is 0. |
+| SA-G10 | PASS | `rg -c '^\| ' SPEC.md` prints `table rows=37`, at least 30;  `rg -c 'arrives at M1'` prints 6, at least 6;  `rg -c 'arrives at M2'` prints 4, at least 3. |
+| SA-G11 | PASS | `git -C REPO status --porcelain \| rg -c '_build'` prints `build-in-status=0`;  `git -C REPO log --oneline` prints exactly `979a71a M0 Stage 0: the harness`;  the pin prints `6d0d48d` with `pin-porcelain=0`. |
+| SA-G12 | PASS | `zsh dev/trusted-lines.sh` prints `TRUSTED-LINES core=0/2000 vm=0/800 OK`, with `trusted exit=0`. |
+
+### Numbers
+
+| Measure | Value |
+| --- | --- |
+| `surface/lexer.ml` | 271 lines |
+| `surface/parser.ml` | 646 lines |
+| `surface/print.ml` | 255 lines |
+| `surface/ast.ml` | 98 lines |
+| `test/parse.ml` | 123 lines |
+| `lib/error.ml` | 38 lines |
+| `SPEC.md` | 212 lines |
+| Round-trip fixtures | 20, each with a `.fmt` golden |
+| Parse twins | 3, each with a `.err` golden |
+| PARSE leg file count | 24 (20 fixtures, 3 twins, 1 spine), ok 24, fail 0 |
+| MEASURE BUILD | 84.825 ms, tier MED |
+| MEASURE HOUSE | 81.409 ms, tier FAST |
+| MEASURE PARSE | 74.226 ms, tier MED |
+| MEASURE DENOMINATORS | 8381.955 ms, tier SLOW |
+| DENOMINATORS of this run | raw_ms_per_kloc 222.632, median_ms 1107.816, lines 4976, files 19 |
+| Trusted lines | core 0 of 2000, vm 0 of 800 |
+
+The Stage 0 run measured raw_ms_per_kloc 199.274 and the builder run measured
+215.357.  The three figures are the same machine under a different load, and all
+three sit inside the 50 to 700 band that the DENOMINATORS leg checks, so the
+move is load and not a change of the corpus:  the corpus digest
+71878111d71951341a0f16a3fd971f1d108c3f80cbcb4102ba9d02c76a730543, the line count
+4976 and the file count 19 are the same in all three runs.
+
+### Findings
+
+One finding came from the verifier, and the judge confirmed it on the file.
+
+- gates-code:F1, low.  Decision D-A-13 says that a bounds-checked `String.get`
+  and `String.sub` wrapper "cannot be written" under the house rule.  The house
+  pattern at `dev/house.sh:39` is
+  `\|[[:space:]]*_[[:space:]]*->|List\.nth|List\.hd|List\.tl|\.\(`, which
+  forbids the `.(` index syntax and the three partial list readers, and it does
+  not forbid a `String.get` call behind a length guard.  The reason of D-A-13 is
+  therefore too strong.  Resolution: the finding is a claim about a reason and
+  not about the code.  The char-list design with the total helpers `take`,
+  `drop` and `run_of` stays as built, it passes SA-G4 and it keeps the one-pass
+  O(n) cost, so no source file changes.  The reason of D-A-13 is amended here:
+  the char-list form was chosen because it needs no guard at all, and a guarded
+  index wrapper would need a proof at every call site that the house gate cannot
+  check.  No other finding was open at the end of the stage.
+
+### Decisions
+
+D-A-1 to D-A-10 come from the Stage A brief.  D-A-11 onward come from the
+build.
+
+| Id | Decision | Reason |
+| --- | --- | --- |
+| D-A-1 | `prog ::= decl*`, so the empty program is legal and prints as the empty string. | The placeholder spine holds no declaration, and the PARSE leg names the spine, so `decl+` of the plan would fail the leg. |
+| D-A-2 | Operator levels, lowest first: `\|\|` right, `&&` right, the six comparisons non-associative, `+ - ^` left, `* / %` left, then application, then atoms.  An operator is a `Bin` node, and there is no unary minus, so a negative number is `0 - 5`. | The plan section 4 table has no operator row, and a closed `binop` lowers to one primitive at Stage D. |
+| D-A-3 | `<` opens a variant literal only in expression-start position, and after an atom it is `Lt`, so a variant literal in argument position needs parentheses.  Inside a payload the Gt flag is off. | One character carries two meanings, and the position rule is the only rule that keeps the printer stable. |
+| D-A-4 | The concrete syntax of the ten refused forms is fixed and recorded in the SPEC.md refusal table, provisional until the M1 plan. | A refusal that names no syntax cannot be pinned by a fixture. |
+| D-A-5 | `test/parse.exe` checks the tree twice and the print twice, checks the `.fmt` golden for a file under `test/` whose name does not start with `parse-`, checks the `.err` golden for a twin under `test/neg/`, and prints `PARSE-EMPTY` at exit 2 with no argument.  Stage B positives live in `test/pos/`. | A missing golden must be a FAIL and not a skip, and an empty argument list must not read as a pass. |
+| D-A-6 | Parameters desugar in the parser into nested `Lam`, and the printer re-sugars them. | The AST then holds one lambda form, and the canonical print stays the source form that a reader writes. |
+| D-A-7 | `Error.to_line` prints `NAME L:C-L:C text`, with the name first and the span second, 1-based. | The twin goldens hold the first two words only, so the name and the span must lead the line. |
+| D-A-8 | `.gitignore` holds `_build/`, `*.install` and `*.bkc`. | The kanon file plus the brisk compiled-module suffix that Stage E writes. |
+| D-A-9 | `lib/` at Stage A is `ident.ml`, `label.ml`, `literal.ml` and `error.ml` with the `Parse` arm only, and the surface type grammar lives whole in `surface/ast.ml`.  `types.ml` is a Stage B file. | R-M0-2 asks for the surface grammar whole at Stage A, and an unused `types.ml` would fail the warnings-as-errors build. |
+| D-A-10 | Every dune stanza carries `(flags (:standard -warn-error +a))`. | This is the "warnings as errors" of the plan, and it makes a non-exhaustive match a build failure. |
+| D-A-11 | Both libraries are `(wrapped false)`, so `Ident`, `Label`, `Literal`, `Error`, `Ast` and `Lexer` name themselves. | M0 has one namespace and no import form, and a prefix would add ceremony that the plan does not ask for. |
+| D-A-12 | `surface/dune` leaves the module list open. | `parser.ml` and `print.ml` then join the library without an edit of a file the first builder owns. |
+| D-A-13 | The lexer walks a char list made once by `String.to_seq`, with the total helpers `take`, `drop` and `run_of`. | The char-list form needs no bounds guard at all;  the pass stays one pass with cost O(n) and holds no state that changes.  See finding gates-code:F1 for the amended reason. |
+| D-A-14 | A raw newline inside a string literal ends the scan with the Parse error "the string has no closing quote". | A missing quote otherwise swallows the rest of the file and reports a span far from the mistake. |
+| D-A-15 | The token list ends with an EOF token whose span is the end position. | The parser then reports an expectation at a real span at the end of the input, with no special case for the empty list. |
+| D-A-16 | A span runs from the position of the first character of the token to the position just past its last character. | One rule prints every span, and the end of the file is still a well formed position. |
+| D-A-17 | An integer that `int_of_string_opt` refuses is the Parse error "the integer is out of range". | The lexer never raises, and an overflow is a source mistake and not a lexer fault. |
+| D-A-18 | Every keyword and symbol is its own token constructor, not a `TKw of string`. | A match over a string needs a wildcard arm, which the house rule refuses. |
+| D-A-19 | The `Error` module carries the constructors `pos`, `span`, `point` and `parse` and the readers `name_of`, `span_of` and `text_of` beside `to_line`. | The parser and the printer then build and read a span with no record literal at each site. |
+| D-A-20 | SPEC.md adds one sentence after the refusal table that names the M1 and the M2 schedule. | The verbatim handler row reads "handlers arrive at M1", so the rows alone give five lines that hold "arrives at M1" and SA-G10 counts six.  No refusal text is altered. |
+| D-A-21 | `test/dune`, the `dev/PROVENANCE.md` rows and the `dev/gates.sh` legs stay with the second builder. | Two builders must not edit one file in the same stage. |
+| D-A-22 | The parser is recursive descent with a precedence climb over a token list, and it threads a `(value, rest)` pair through a `Result` with a local `let*`. | No exception, no mutable state and no index, so the house legs hold by construction and every failure is one Parse error with a span. |
+| D-A-23 | The parser classifies a token through a small view sum (`VInt`, `VStr`, `VLower`, `VUpper`, `VOther`) whose last arm names all 58 remaining token constructors by hand. | A new token kind then breaks the build instead of falling silently into `VOther`. |
+| D-A-24 | The parameter list stops on `starts_pat` and not on a fixed closing token, so `let f = fun x x` reports "expected an arrow after the parameters" at the caller. | The message then names the real mistake.  The twin `parse-arrow.bk` pins that line. |
+| D-A-25 | A variant payload parses with the Gt flag false, so `>` is the closing mark and never the comparison operator inside the payload. | A comparison in a payload needs its own parentheses, which is the SPEC.md section 5 rule. |
+| D-A-26 | `test/parse.ml` makes the one `Array.to_list Sys.argv` call of the tree, inside a single `arguments ()` helper. | House leg 3 searches `lib` and `vm` only, and the rest of `surface/` and `test/` follows the no-Array rule by choice. |
+| D-A-27 | `Ast.Inj` prints at level 6 and not at level 7, so a variant literal in argument position prints as `f (< right x >)`. | At level 7 the print re-parses as a less-than chain and the round trip breaks.  The level makes the printer stable rather than the parser lenient. |
+| D-A-28 | Inside `Code [ trow , ty ]` the comma that closes the row is the comma of the form, so a row of two or more fields must write its tail. | A two-field tail-less row is out of the M0 grammar.  It is recorded as one sentence in SPEC.md section 5, and the fixture uses the tailed form. |
+
+### Mutation checks
+
+The three checks of the brief section 5 ran on scratch copies under
+`SCRATCH/stageA/mut-N`, never on the repository files.  All three mutants died.
+`dev/MUTATION-LOG.md` holds the commands and the catching legs.

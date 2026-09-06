@@ -1,0 +1,5 @@
+let main = let rec f x = x in f 1
+let mutual = let rec f x = g x and g y = f y in f 1
+let nested = let rec f x = let rec g y = y in g x in f 1
+let variant = < l (let rec f x = x in f 1) >
+let outer = match x with | 1 -> (let rec f y = y in match x with | 0 -> f 1) | 0 -> 0

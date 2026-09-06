@@ -1,0 +1,2 @@
+resource File = { path : string }
+resource Socket = int

@@ -1,0 +1,4 @@
+(* scope, spawn and join, declared and refused at M0 *)
+let a = scope f
+let b = spawn (g x)
+let c = join b

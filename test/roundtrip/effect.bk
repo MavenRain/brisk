@@ -1,0 +1,3 @@
+(* an effect declaration, declared and refused at M0 *)
+effect State { get : unit -> int, put : int -> unit }
+effect Empty { }

@@ -1,0 +1,2 @@
+let a = use x as r in r
+let b = use x as r in f r

@@ -1,0 +1,4 @@
+let a = match e with | < left x > -> x | < right y > -> y
+let b = match n with | 0 -> "zero" | 1 -> "one" | m -> m
+let c = match r with | { a = _ | rest } -> rest | { b = y } -> y
+let d = match v with | < left ^ 1 x > -> x | < left y > -> y

@@ -1,0 +1,6 @@
+(* fun with one and with two parameters, and application *)
+let id = fun x -> x
+let first = fun x y -> x
+let hole = fun _ -> 0
+let two = f a b
+let three = g a b c

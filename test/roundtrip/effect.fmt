@@ -1,0 +1,2 @@
+effect State { get : unit -> int, put : int -> unit }
+effect Empty { }

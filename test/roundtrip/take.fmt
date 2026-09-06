@@ -1,0 +1,2 @@
+let a = take l from r
+let b = take l from (f x)

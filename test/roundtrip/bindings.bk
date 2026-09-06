@@ -1,0 +1,4 @@
+(* let in, let rec with and, and if *)
+let a = let x = 1 in x
+let rec even n = odd n and odd n = even n
+let c = if p then 1 else 2

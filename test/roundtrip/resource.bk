@@ -1,0 +1,3 @@
+(* a resource declaration, declared and refused at M0 *)
+resource File = { path : string }
+resource Socket = int

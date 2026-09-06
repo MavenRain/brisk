@@ -1,0 +1,4 @@
+let outer = < left 1 >
+let inner = < left ^ 1 2 >
+let held = f (< right x >)
+let sum = < pair 1 + 2 >

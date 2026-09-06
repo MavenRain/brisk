@@ -1,0 +1,4 @@
+(* quote and splice, declared and refused at M0 *)
+let a = .< 1 + 2 >.
+let b = .< f (.~ x) >.
+let c = .~ y

@@ -1,0 +1,10 @@
+; lib/dune:  brisk_core, the core library of M0.
+; The library is unwrapped, because M0 has one namespace and no import
+; form (M0-PLAN.md:57), so Ident, Label, Literal and Error name themselves
+; in surface/ and in test/ (D-A-11).
+; -warn-error +a is the "warnings as errors" of M0-PLAN.md:245 (D-A-10).
+
+(library
+ (name brisk_core)
+ (wrapped false)
+ (flags (:standard -warn-error +a)))

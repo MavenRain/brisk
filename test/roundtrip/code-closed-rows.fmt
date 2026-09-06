@@ -1,0 +1,5 @@
+let empty = (c : Code [  , int ])
+let single = (c : Code [ a : int , int ])
+let arrow = (c : Code [ a : int -> int , int -> int ])
+let nested = (c : Code [ a : Code [  , int ] , Code [ b : int , int ] ])
+let openrow = (c : Code [ a : int, b : bool | r , int ])

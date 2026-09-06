@@ -1,0 +1,6 @@
+(* every literal kind of M0 *)
+let n = 42
+let s = "a b"
+let yes = true
+let no = false
+let u = ()

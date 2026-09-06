@@ -1,0 +1,2 @@
+let a = handle e with { get x k -> k, put y -> y }
+let b = handle e with { }

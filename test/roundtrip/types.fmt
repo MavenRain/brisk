@@ -1,0 +1,7 @@
+let a = (f : int -> int)
+let b = (g : a -1> b)
+let c = (r : { l : t | rest })
+let d = (v : < l : t >)
+let e = (q : Code [ l : t | rest , u ])
+let h = (k : (int -> int) -> int)
+let i = (m : { })

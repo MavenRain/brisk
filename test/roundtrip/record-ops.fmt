@@ -1,0 +1,5 @@
+let e = { a = 1 | r }
+let two = { a = 1 | { b = 2 | r } }
+let less = { r - a }
+let read = r.a
+let deep = r.a.b

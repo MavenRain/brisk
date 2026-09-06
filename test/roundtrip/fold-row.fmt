@@ -1,0 +1,2 @@
+let a = fold_row r
+let b = fold_row (f x)

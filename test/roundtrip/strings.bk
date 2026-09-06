@@ -1,0 +1,6 @@
+(* a string with every escape of the lexical rules *)
+let a = "a\nb"
+let b = "a\tb"
+let c = "a\\b"
+let d = "a\"b"
+let e = "all\n\t\\\" of them"

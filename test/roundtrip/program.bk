@@ -1,0 +1,6 @@
+(* a program of five declarations *)
+let one = 1
+let add = fun x y -> x + y
+let rec down n = if n == 0 then 0 else down (n - 1)
+let point = { x = 1, y = 2 }
+let shown = match point.x with | 1 -> "one" | other -> "more"
