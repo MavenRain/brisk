@@ -1,0 +1,3 @@
+(* the annotation position:  the type the source writes and the type the rule finds *)
+let n = (1 : int)
+let f = (fun x -> x : int -> int)

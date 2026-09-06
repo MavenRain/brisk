@@ -6,7 +6,10 @@
 #
 # The trusted base of M0 is the core and the machine.  The core is six
 # files:  unify.ml, infer.ml, row.ml, types.ml, ir.ml and lower.ml, held
-# at 2,000 lines together.  The machine is three files:  instr.ml,
+# at 2,000 lines together.  infer.ml reads Ast and lib/ may not name Ast
+# without a library cycle, so the judgment sits at surface/infer.ml
+# (D-B-43) and the core list names it there (D-B-44).  The bound and the
+# other five files are unchanged.  The machine is three files:  instr.ml,
 # assemble.ml and exec.ml, held at 800.  D-M0-9 fixes both bounds, so the
 # base stays small enough for one reader to audit.
 #
@@ -48,7 +51,7 @@ vm_bound=800
 
 core_files=(
   $root/lib/unify.ml
-  $root/lib/infer.ml
+  $root/surface/infer.ml
   $root/lib/row.ml
   $root/lib/types.ml
   $root/lib/ir.ml

@@ -1,0 +1,6 @@
+forall a b. { l : a, l : b } -> b
+bool
+forall a b. { l : a, l : b } -> b
+bool
+forall a b c. { l : a, l : b, l : c } -> c
+string

@@ -1,0 +1,2 @@
+forall a b. { n : a | b } -> a
+int

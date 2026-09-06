@@ -1,0 +1,2 @@
+apply (fun x -> x) 1
+apply (fun n -> n + 1) 2

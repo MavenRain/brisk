@@ -1,0 +1,2 @@
+(* the type occurs check:  x stands inside the arrow x must equal *)
+let f x = x x

@@ -1,0 +1,2 @@
+f { a = true, b = 4 }
+f { a = (), b = 5, c = "extra" }

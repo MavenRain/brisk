@@ -1,0 +1,2 @@
+let f r = let a = r.a in let b = r.b + 1 in r.b + b
+let result = f { a = (), b = 2 }

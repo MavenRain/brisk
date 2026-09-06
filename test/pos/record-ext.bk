@@ -1,0 +1,2 @@
+(* extension puts a field in front of the row the record already holds *)
+let tag r = { n = 1 | r }

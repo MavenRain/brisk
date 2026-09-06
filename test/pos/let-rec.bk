@@ -1,0 +1,4 @@
+(* a mutual recursion whose two bodies use free names under a lambda *)
+let one = 1
+let two = 2
+let rec even n = if n == 0 then one else odd (n - 1) and odd n = if n == 0 then two else even (n - 1)

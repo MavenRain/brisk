@@ -1,0 +1,2 @@
+(* restriction removes the outermost field the label names *)
+let drop r = { r - n }

@@ -1,0 +1,2 @@
+forall a. a -> a
+_a -> _a

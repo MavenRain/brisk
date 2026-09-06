@@ -1,0 +1,2 @@
+let name r = r.n
+let two = name { n = 1, s = "x" }

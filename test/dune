@@ -1,9 +1,11 @@
-; test/dune:  parse.exe, the PARSE gate leg of M0-PLAN.md:248.
-; The executable reads brisk_core and brisk_surface, which are unwrapped,
-; so Error, Ast, Parser and Print name themselves (D-A-11).
+; test/dune:  parse.exe of M0-PLAN.md:248 and main.exe of M0-PLAN.md:249.
+; One stanza declares both, because the two executables read the same
+; libraries (D-B-20).
+; The libraries brisk_core and brisk_surface are unwrapped, so Error, Ast,
+; Parser, Print and Infer name themselves (D-A-11).
 ; -warn-error +a is the "warnings as errors" of M0-PLAN.md:245 (D-A-10).
 
-(executable
- (name parse)
+(executables
+ (names parse main)
  (libraries brisk_core brisk_surface)
  (flags (:standard -warn-error +a)))

@@ -1,0 +1,3 @@
+(* the value restriction:  an application is not a value, so it stays monomorphic *)
+let id x = x
+let x = id id

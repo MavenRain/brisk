@@ -1,0 +1,2 @@
+(* the row occurs check:  r stands inside the row r must equal *)
+let f r = if true then r else { a = 1 | r }

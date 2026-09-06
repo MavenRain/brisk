@@ -1,0 +1,1 @@
+let both = ({ n = same 1, s = same "a" } : { n : a, s : b })

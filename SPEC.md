@@ -211,3 +211,188 @@ is just past the last character of the offending token.  A negative golden
 holds the first two words of the line, so the text may improve without a
 rewrite of the goldens.  The error set is closed at M0 (M0-PLAN.md:169):
 Stage A holds the `Parse` name alone, and Stage B adds the other eleven.
+
+## 9 Types, rows and schemes
+
+The type grammar is declared whole (M0-PLAN.md:126-137, R-M0-2).  M1 and M2
+arms are constructors of the same sum, and `lib/unify.ml` and
+`surface/infer.ml` refuse them with the milestone name.
+
+```ocaml
+type tyvar = { tv_id : int;  tv_lv : Level.t }
+type rowvar = { rv_id : int;  rv_lv : Level.t }
+type kindvar = { kv_id : int;  kv_lv : Level.t }
+
+type ty =
+  | Var of tyvar                   (* union-find, level-stamped *)
+  | Con of Ident.t * ty list       (* int, string, bool, unit at M0 *)
+  | Arrow of ty * mult * row * ty  (* mult and the effect row are M1 *)
+  | Record of row
+  | Variant of row
+  | Code of row * ty               (* M2 *)
+
+and row = REmpty | RVar of rowvar | RExt of Label.t * ty * row
+and mult = Many | AtMostOnce       (* AtMostOnce is built at M1 *)
+and kind = Unr | Aff | KVar of kindvar  (* solved at M1 *)
+
+type scheme = Forall of tyvar list * rowvar list * ty
+```
+
+A variable is an identity and a level (D-B-1), and a binding lives in the
+store `lib/subst.ml` and not in the variable, so no cell in `lib/` changes
+in place.  The three variable records carry distinct field names (D-B-27).
+There is no tuple constructor (R-M0-3).
+
+### 9.1 Scoped labels (R-M0-4)
+
+A label may repeat inside a record row and inside a variant row, and the
+order of the list is the order of the occurrences.
+
+- Selection `r.l` takes the OUTERMOST `l`.
+- Extension `{ l = e | r }` shadows an `l` the row already holds and keeps
+  the older field.
+- Restriction `{ r - l }` removes the outermost `l` only.
+- `< l e >` injects at the outermost `l` and `< l ^ k e >` at the k-th, and
+  the same two forms are patterns.
+- `Row.rewrite` takes the FIRST occurrence and never sorts the fields
+  (D-B-7), so the occurrence order is the order the source wrote.
+- `Row.rewrite`, `Row.restrict`, `Row.select` and `Row.select_occ` answer an
+  option, and a missing label is `None` (D-B-38).
+
+Record-pattern occurrence indices address shared slots in the input row.
+`{ l = x, l ^ 1 = y }` constrains two occurrences, regardless of the order
+of those pattern fields.  Sparse indices introduce unconstrained slots
+only where an earlier occurrence has no pattern constraint.
+
+### 9.2 Unification and the two occurs checks
+
+Unification is HM with levels, one union-find over the store, no constraint
+solver and no search.  To unify `RExt (l, t, r)` with a row `s`, find the
+first `l` in `s`, unify the payloads, then unify the tails.  When `s` has no
+`l` and its tail is a row variable, extend the variable.  When `s` has no
+`l` and its tail is `REmpty`, the error is `MissingLabel`.  Two rigid `Con`
+names that differ are `Mismatch`.  A bind lowers the level of every variable
+in the bound type, because generalization reads the level.
+
+Before searching or extending a row, unification resolves its nested tail
+bindings.  Extending a row must preserve every constraint already stored
+in its tail.
+
+There are two occurs checks and not one (D-B-11).  `occurs_ty` rejects a
+type variable inside its own binding and reports `OccursType`.  `occurs_row`
+rejects a row variable inside its own tail and reports `OccursRow`.  Each
+check runs before its own bind, and each has its own negative twin,
+`test/neg/occurs-type.bk` and `test/neg/occurs-row.bk`.
+
+### 9.3 Generalization and the value restriction
+
+Levels drive generalization.  A `let`, a `let rec` and a top declaration
+generalize every variable whose level is deeper than the level after
+`Level.leave`, and only when the right side is a syntactic value:  a
+literal, a name, a lambda, or a record or a variant of values (D-B-17).  An
+application never generalizes.  Instantiation makes one fresh variable per
+bound variable.  A `let rec` binds a lambda only, and a non-function is
+`RecursiveValue`.
+
+When a binding stays monomorphic, its free type and row variables are
+lowered to the surrounding level.  A later alias therefore cannot
+generalize those variables and bypass the value restriction.
+
+M0 has no reference cell, no exception and no effect, so the restriction
+buys no soundness at M0.  It is kept because M1 adds affine resources and
+effect rows, and a scheme printed at M0 must not change when they arrive.
+
+### 9.4 The printed scheme (D-B-18)
+
+A scheme prints as one line that a reader compares by eye.
+
+- `forall a b. a -> b -> a`.  The bound variables are renamed in order of
+  first appearance in the body, `a`, `b`, `c` and `a1` after `z`, and the
+  bound row variables take their names after the bound type variables in
+  the same supply.
+- No prefix prints when both bound lists are empty, so a monomorphic answer
+  prints as its type alone.
+- A quantified variable the body never names drops from the prefix (D-B-41).
+- A variable the scheme does not bind carries an underscore, `_a` and `_b`
+  in the same appearance order (D-B-33), so the monomorphic `_a -> _a` of
+  `test/pos/value-restriction.bk` reads apart from `forall a. a -> a`.
+- A row prints in occurrence order:  `{ l : int, l : bool | r }` open,
+  `{ l : int }` closed, `{ | r }` when the row is a tail alone, and `{ }`
+  when the row is empty.  A variant row prints with angle marks,
+  `< l : int | r >`.
+- An arrow is right associative, so an arrow on the left is bracketed.
+- An arrow over a residual row prints the row inside the arrow,
+  `-[ l : int ]>` and `-1[ l : int ]>` (D-B-32).  At M0 the residual row is
+  `REmpty` at every arm, so that shape never appears in an M0 golden.
+
+### 9.5 The usage counts (D-B-13)
+
+`Usage.t` maps a bound name to a count in `Zero`, `Once` or `Many`.  The map
+is computed and not a constant.
+
+- `Var x` answers `single x Once`.
+- A `match` joins the arms, and a join takes the larger count.
+- A sequential pair adds, and `Once` add `Once` is `Many`.
+- A lambda and a recursive binding scale their body, and a scale lifts
+  `Once` and `Many` to `Many` and keeps `Zero` as `Zero` (D-B-34).
+- A `let rec` group removes its own names from the map before it scales.
+- `Usage.to_lines` prints one line `NAME COUNT` per name in name order
+  (D-B-31), which is the golden `test/pos/let-rec.usage` holds.
+
+No M0 judgment REJECTS on a count.  The counts carry the activation rule
+that M1 needs.
+
+### 9.6 The error names (M0-PLAN.md:152-165)
+
+`lib/error.ml` is one sum type with twelve names, and the set is closed at
+M0.  A thirteenth name is a halt blocker.  Every error carries a span and
+prints one line with the form of section 8.  The `Fires when` cells are the
+cells of M0-PLAN.md:152-165 word for word.  The third column of the plan table,
+the negative twin fixture, is left out, because eight of its twelve fixtures
+belong to a later stage and a column that names a file the tree has not got
+reads as a promise the stage does not keep (D-B-63).
+
+| Error name | Fires when |
+| --- | --- |
+| `Unbound` | a name has no binding |
+| `OccursType` | a type variable occurs in its own binding |
+| `OccursRow` | a row variable occurs in its own tail |
+| `MissingLabel` | selection or restriction of a label a closed row lacks |
+| `Mismatch` | two rigid type constructors do not unify |
+| `Arity` | a constructor or a primitive gets the wrong count |
+| `NonExhaustive` | a match omits an OCCURRENCE of a label of a closed variant row, or omits the catch-all a row-variable tail or a literal arm list needs |
+| `DuplicatePattern` | two arms name the SAME occurrence of the same label at the same depth |
+| `NotAFunction` | application of a non-arrow |
+| `RecursiveValue` | a let rec binds a non-function at M0 |
+| `Not_yet` | a declared arm of a later milestone is used |
+| `Parse` | the parser cannot proceed |
+
+Exhaustiveness is Stage C, so `NonExhaustive` and `DuplicatePattern` have no
+M0 reporter yet and a match arm list only types.  Every error the judgment
+reports at Stage B carries the point span `1:1-1:1`, because the surface
+tree carries no position at any node (D-B-50).
+
+`Arity` has no M0 reporter either.  The M0 type grammar writes a type name
+with no argument list, so `conv_ty` builds every `Con` with the empty list and
+`unify_list` only ever compares two empty lists.  The arity test guards the
+constructor path for the milestone that adds a type application (D-B-60).  The
+three names stay in the table because the set is closed at M0 and a thirteenth
+name is a halt blocker.
+
+### 9.7 The judgment
+
+`infer` answers a type, a residual row, a use map and the state.  `check` is
+its twin at the one checking position of M0, the annotation `(e : t)`.  The
+state holds the store, the current level and the next fresh identity, and it
+is one extra argument and one extra result (D-B-15).  The residual row is
+`REmpty` at every M0 arm and the field is threaded, never ignored (D-B-16).
+`program` answers one scheme per bound name in source order (D-B-46), so a
+`let rec` of two binds answers two schemes.
+
+The claim that M0 is principal is the SUITE-CHECK leg and not a sentence.
+The leg has three parts per positive fixture, all with no annotation in the
+fixture itself:  the inferred scheme equals its golden;  every line of the
+fixture `.inst` list checks against that scheme, which holds the scheme
+general enough;  and the one strictly more general annotation in the fixture
+`.over` file is REJECTED with `Mismatch`, which holds the scheme no more
+general than the term earns.

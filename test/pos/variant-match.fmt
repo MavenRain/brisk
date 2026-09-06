@@ -1,0 +1,1 @@
+let size v = match v with | < n x > -> x | < s y > -> 0

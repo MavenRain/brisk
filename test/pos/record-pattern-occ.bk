@@ -1,0 +1,6 @@
+let f { l = x, l ^ 1 = y } = y
+let result = f { l = 1, l = true }
+let reverse { l ^ 1 = y, l = x } = y
+let reversed = reverse { l = 1, l = true }
+let sparse { l ^ 2 = z } = z
+let third = sparse { l = 1, l = true, l = "ok" }

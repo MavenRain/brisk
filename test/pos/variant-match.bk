@@ -1,0 +1,2 @@
+(* a match over two variant arms, and the row the two arms make *)
+let size v = match v with | < n x > -> x | < s y > -> 0

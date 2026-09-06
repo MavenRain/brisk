@@ -1,0 +1,3 @@
+f { l = true, l = 1 }
+reverse { l = "outer", l = false }
+sparse { l = (), l = 1, l = true }

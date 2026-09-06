@@ -1,0 +1,2 @@
+forall a. a -> a
+{ n : int, s : string }

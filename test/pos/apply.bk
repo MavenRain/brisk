@@ -1,0 +1,2 @@
+(* application:  a function taken and used on its argument *)
+let apply f x = f x

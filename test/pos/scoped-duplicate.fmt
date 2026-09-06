@@ -1,0 +1,2 @@
+let both = { a = 1 | { a = "s" } }
+let first = both.a

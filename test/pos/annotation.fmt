@@ -1,0 +1,2 @@
+let n = (1 : int)
+let f = (fun x -> x : int -> int)

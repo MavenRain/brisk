@@ -1,0 +1,2 @@
+(* the identity function, the one M0 rule that generalizes *)
+let id x = x

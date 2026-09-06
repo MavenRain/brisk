@@ -1,0 +1,2 @@
+drop { n = 1 }
+drop { n = 1, s = "x" }

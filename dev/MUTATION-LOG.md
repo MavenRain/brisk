@@ -163,3 +163,154 @@ FAIL PARSE
 
 The leg exits 1.  The missing golden is a FAIL with a named reason and not a
 silent skip, which is the check that this mutant tests.  Result: KILLED.
+
+## Stage B
+
+Each check ran on its own copy of the repository under `SCRATCH/stageB/mut-N`,
+made with `tar -C REPO --exclude ./_build --exclude ./.git -cf - . | tar -C
+COPY -xf -` and then `chmod -R u+w`, and built through `zsh
+COPY/dev/pin-dune.sh dune build @all`.  The brief section 5 names `rsync -a`,
+which cannot rename its temporary file under the scratch directory of this run
+and leaves a half copy, so the tar pair takes its place and answers the same
+tree (D-B-56).  No repository file was touched.  `dev/gates.sh` finds the root
+from its own path, so a copy gates itself.  The date of the run is 2026-09-06.
+
+The clean baseline of every one of the four copies is the same:  the copy
+builds at exit 0 with no output, and `timeout 300 zsh COPY/dev/gates.sh --leg
+suite-check` prints
+
+```
+CHECK files=14 pos=12 neg=2 inst=26 over=12 ok=14 fail=0
+PASS SUITE-CHECK positives=12 twins=2
+```
+
+at exit 0.  Every FAIL below is therefore the mutation and not the baseline.
+Each copy holds 151 files.
+
+### SB-M1 the row occurs check always answers false
+
+Mutation: in `mut-1/lib/unify.ml` the `RVar` arm of `occurs_row` reads `|
+Types.RVar _ -> false` in place of `| Types.RVar w -> Types.rowvar_equal v w`,
+which is the one line of the function that can answer true.  The mutant builds
+at exit 0.
+
+The mutant does not print a CHECK-FAIL line:  it hangs.  With the check gone
+the row variable of `test/neg/occurs-row.bk` binds to its own extension, and
+the next resolve of that cyclic row does not end.  Two probes on the same copy:
+
+```
+timeout 30 mut-1/_build/default/test/main.exe mut-1/test/neg/occurs-type.bk
+CHECK files=1 pos=0 neg=1 inst=0 over=0 ok=1 fail=0
+probe occurs-type exit=0
+timeout 30 mut-1/_build/default/test/main.exe mut-1/test/neg/occurs-row.bk
+probe occurs-row exit=124
+```
+
+The type twin still passes on the mutant, so the two occurs checks are two
+functions, and the row twin alone hangs.
+
+Command 1: `timeout 300 zsh SCRATCH/stageB/mut-1/dev/gates.sh --leg
+suite-check` exits 124 with 0 bytes of output.  The `--leg` dispatch carries no
+watchdog of its own, and `leg_suite_check` reads the driver through a command
+substitution, so nothing is printed before the outer timeout fires.
+
+Command 2: `timeout 400 zsh SCRATCH/stageB/mut-1/dev/gates.sh`, the battery,
+exits 1.  Catching leg: SUITE-CHECK, at the SUITE tier ceiling of 300 s.  The
+output holds:
+
+```
+PASS BUILD
+PASS HOUSE
+PARSE files=36 ok=36 fail=0
+PASS PARSE fixtures=36
+FAIL SUITE-CHECK
+MEASURE SUITE-CHECK tier=SUITE elapsed_ms=300017.660 exit=124
+GATES-FAIL
+```
+
+The clean baseline of the same copy prints `PASS SUITE-CHECK positives=12
+twins=2` in 185 ms, so the 300 s is the mutation.  The brief predicts the line
+`CHECK-FAIL .../test/neg/occurs-row.bk the file checks clean and the golden
+names OccursRow`;  that line cannot print, because the row occurs check is a
+termination guard before it is a diagnostic (D-B-62).  The battery still fails
+and the tier ceiling is the catcher.  Result: KILLED.
+
+### SB-M2 selection takes the last label
+
+Mutation: in `mut-2/lib/row.ml` the `step` helper of `rewrite` first searches
+the rest of the row and takes its own field only when the rest holds no further
+occurrence, so `rewrite` answers the LAST occurrence of the label in place of
+the first.  The mutant builds at exit 0.
+
+Command: `timeout 300 zsh SCRATCH/stageB/mut-2/dev/gates.sh --leg suite-check`
+
+Catching leg: SUITE-CHECK, at the scheme part of the scoped-duplicate fixture.
+The output holds:
+
+```
+CHECK-FAIL .../mut-2/test/pos/scoped-duplicate.bk the printed scheme differs from the golden
+CHECK files=14 pos=12 neg=2 inst=26 over=12 ok=13 fail=1
+FAIL SUITE-CHECK
+```
+
+The leg exits 1 and the line is the line the plan row names.  Result: KILLED.
+
+### SB-M3 generalization, one line in each of two copies
+
+#### mut-3a delete the value-restriction guard
+
+Mutation: in `mut-3a/surface/infer.ml` the call `close_binds { st3 with level =
+outer } outer (is_value e) binds` passes `true` in place of `(is_value e)`, so
+every let generalizes and the value restriction is gone.  The mutant builds at
+exit 0.
+
+Command: `timeout 300 zsh SCRATCH/stageB/mut-3a/dev/gates.sh --leg suite-check`
+
+Catching leg: SUITE-CHECK, at the scheme part of the value-restriction fixture.
+The output holds:
+
+```
+CHECK-FAIL .../mut-3a/test/pos/value-restriction.bk the printed scheme differs from the golden
+CHECK files=14 pos=12 neg=2 inst=26 over=12 ok=13 fail=1
+FAIL SUITE-CHECK
+```
+
+The leg exits 1 and the line is the line the plan row names.  Result: KILLED.
+
+#### mut-3b make the level test skip the current level
+
+Mutation: in `mut-3b/surface/infer.ml` the type-variable filter of
+`generalize` reads `Level.deeper_than (Subst.level_of_ty st1.store v)
+(Level.enter outer)` in place of `outer`, so a variable at the level of the
+let body is no longer generalized.  The mutant builds at exit 0.
+
+Command: `timeout 300 zsh SCRATCH/stageB/mut-3b/dev/gates.sh --leg suite-check`
+
+Catching leg: SUITE-CHECK, at the scheme part and the instantiation part of
+eight fixtures.  The output holds:
+
+```
+CHECK-FAIL .../mut-3b/test/pos/identity.bk the printed scheme differs from the golden
+CHECK-FAIL .../mut-3b/test/pos/identity.bk inst line 2 the use does not check
+CHECK-FAIL .../mut-3b/test/pos/let-poly.bk the program does not type:  Mismatch 1:1-1:1 the context wants int and the source has string
+CHECK files=14 pos=12 neg=2 inst=21 over=10 ok=6 fail=8
+FAIL SUITE-CHECK
+```
+
+The eight failing files are `apply`, `identity`, `let-poly`, `open-row`,
+`record-restrict`, `value-restriction`, `variant-match` and `variant-occ`.  The
+leg exits 1.  The brief predicts that every scheme golden is unchanged and that
+the named line stands on `let-poly.bk`;  the line `inst line 2 the use does not
+check` does print, on `identity.bk`, and the schemes do change, because a
+variable that is no longer generalized prints with an underscore (D-B-33).  The
+mutation is caught more widely than the brief predicts and not less widely
+(D-B-62).  Result: KILLED.
+
+### Summary
+
+Four mutants ran, one per copy, and all four died.  SB-M2 and SB-M3a print
+exactly the CHECK-FAIL line the plan row names.  SB-M3b prints eight CHECK-FAIL
+lines, more than the row predicts, and the predicted line stands on
+`identity.bk`.  SB-M1 hangs and the SUITE tier ceiling of 300 s catches it.
+The SUITE-CHECK leg is therefore falsifiable at the scheme part, at the
+instantiation part, at the twin part and at the tier ceiling.

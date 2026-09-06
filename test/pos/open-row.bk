@@ -1,0 +1,3 @@
+(* an open row:  the tail variable lets one reader take two record shapes *)
+let name r = r.n
+let two = name { n = 1, s = "x" }

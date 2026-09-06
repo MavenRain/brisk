@@ -1,0 +1,3 @@
+(* one label twice:  the selection takes the outermost occurrence *)
+let both = { a = 1 | { a = "s" } }
+let first = both.a

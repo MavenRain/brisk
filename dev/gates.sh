@@ -174,6 +174,50 @@ leg_parse () {
   return 1
 }
 
+# SUITE-CHECK (M0-PLAN.md:249, D-B-23).  The leg builds first, so one leg
+# alone is honest, then runs test/main.exe over the positive fixtures and
+# the occurs twins and checker regressions.  A list shorter than three
+# entries is a failure,
+# because an empty glob would otherwise pass with nothing checked.  The
+# rule that a suite needs a positive and a twin lives here and not in the
+# exit code of the driver, because SB-G7 runs one twin alone and holds
+# that run at exit 0 (D-B-48).
+leg_suite_check () {
+  local out code line n p q
+  out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
+  code=$?
+  if [[ $code -ne 0 || -n $out ]]; then
+    print -r -- "build exit=$code"
+    print -r -- "$out"
+    print -r -- "FAIL SUITE-CHECK"
+    return 1
+  fi
+  local files=(
+    $ROOT/test/pos/*.bk(N)
+    $ROOT/test/neg/occurs-*.bk(N)
+    $ROOT/test/neg/check-*.bk(N)
+  )
+  if [[ ${#files} -lt 3 ]]; then
+    print -r -- "suite-check fixtures=${#files}"
+    print -r -- "FAIL SUITE-CHECK"
+    return 1
+  fi
+  out=$($ROOT/_build/default/test/main.exe $files 2>&1)
+  code=$?
+  print -r -- "$out"
+  line=$(print -r -- "$out" | rg -- '^CHECK files=')
+  n=$(field "$line" files)
+  p=$(field "$line" pos)
+  q=$(field "$line" neg)
+  if [[ $code -eq 0 && -n $n && -n $p && -n $q ]] && [[ $p -gt 0 && $q -gt 0 ]]
+  then
+    print -r -- "PASS SUITE-CHECK positives=$p twins=$q"
+    return 0
+  fi
+  print -r -- "FAIL SUITE-CHECK"
+  return 1
+}
+
 # DENOMINATORS (M0-PLAN.md:253).  The sidecar holds the record, the
 # record holds every key, dev/denominators.sh re-measures the raw figure
 # in this run, its DENOM corpus digest, file count and line count equal
@@ -280,6 +324,7 @@ if [[ $# -ge 2 && $1 == "--leg" ]]; then
     build) leg_build; exit $? ;;
     house) leg_house; exit $? ;;
     parse) leg_parse; exit $? ;;
+    suite-check) leg_suite_check; exit $? ;;
     denominators) leg_denominators; exit $? ;;
     *) print -r -- "gates: unknown leg $2"; exit 64 ;;
   esac
@@ -332,6 +377,7 @@ leg () {
 leg MED BUILD SELF zsh $SELF --leg build
 leg FAST HOUSE SELF zsh $SELF --leg house
 leg MED PARSE SELF zsh $SELF --leg parse
+leg SUITE SUITE-CHECK SELF zsh $SELF --leg suite-check
 leg SLOW DENOMINATORS SELF zsh $SELF --leg denominators
 
 print -r -- ""

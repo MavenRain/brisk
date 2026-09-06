@@ -1,0 +1,4 @@
+let weak = (fun f -> f) (fun x -> x)
+let alias = weak
+let a = alias 1
+let b = alias true
