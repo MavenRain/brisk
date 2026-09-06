@@ -1,0 +1,2 @@
+(* a splice, declared and refused at M0 *)
+let a = .~ y

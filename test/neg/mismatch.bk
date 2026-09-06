@@ -1,0 +1,2 @@
+(* the two branches of one if hold two different types *)
+let a = if true then 1 else "text"

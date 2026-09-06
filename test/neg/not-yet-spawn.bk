@@ -1,0 +1,2 @@
+(* a spawn, declared and refused at M0 *)
+let a = spawn f

@@ -347,37 +347,38 @@ that M1 needs.
 `lib/error.ml` is one sum type with twelve names, and the set is closed at
 M0.  A thirteenth name is a halt blocker.  Every error carries a span and
 prints one line with the form of section 8.  The `Fires when` cells are the
-cells of M0-PLAN.md:152-165 word for word.  The third column of the plan table,
-the negative twin fixture, is left out, because eight of its twelve fixtures
-belong to a later stage and a column that names a file the tree has not got
-reads as a promise the stage does not keep (D-B-63).
+cells of M0-PLAN.md:152-165, with the duplicate predicate refined to account
+for payload patterns as described in section 9.8. The third column of the plan
+table, the negative twin fixture, is read as built, because the tree now
+holds a file for eleven of the twelve names (D-C-20).  Each named file lives
+in `test/neg/` with a `.err` golden beside it.
 
-| Error name | Fires when |
-| --- | --- |
-| `Unbound` | a name has no binding |
-| `OccursType` | a type variable occurs in its own binding |
-| `OccursRow` | a row variable occurs in its own tail |
-| `MissingLabel` | selection or restriction of a label a closed row lacks |
-| `Mismatch` | two rigid type constructors do not unify |
-| `Arity` | a constructor or a primitive gets the wrong count |
-| `NonExhaustive` | a match omits an OCCURRENCE of a label of a closed variant row, or omits the catch-all a row-variable tail or a literal arm list needs |
-| `DuplicatePattern` | two arms name the SAME occurrence of the same label at the same depth |
-| `NotAFunction` | application of a non-arrow |
-| `RecursiveValue` | a let rec binds a non-function at M0 |
-| `Not_yet` | a declared arm of a later milestone is used |
-| `Parse` | the parser cannot proceed |
+| Error name | Fires when | Negative twin |
+| --- | --- | --- |
+| `Unbound` | a name has no binding | `test/neg/unbound.bk` |
+| `OccursType` | a type variable occurs in its own binding | `test/neg/occurs-type.bk` |
+| `OccursRow` | a row variable occurs in its own tail | `test/neg/occurs-row.bk` |
+| `MissingLabel` | selection or restriction of a label a closed row lacks | `test/neg/missing-label.bk` |
+| `Mismatch` | two rigid type constructors do not unify | `test/neg/mismatch.bk`, and the three `test/neg/check-*.bk` twins |
+| `Arity` | a constructor or a primitive gets the wrong count | none at M0, see D-B-60 |
+| `NonExhaustive` | a match omits an OCCURRENCE of a label of a closed variant row, or omits the catch-all a row-variable tail or a literal arm list needs | `test/neg/non-exhaustive.bk`, `test/neg/non-exhaustive-open.bk`, `test/neg/non-exhaustive-lit.bk` |
+| `DuplicatePattern` | an earlier variant or literal arm subsumes the full pattern of a later arm | `test/neg/duplicate-arm.bk` |
+| `NotAFunction` | application of a non-arrow | `test/neg/not-a-function.bk` |
+| `RecursiveValue` | a let rec binds a non-function at M0 | `test/neg/rec-value.bk` |
+| `Not_yet` | a declared arm of a later milestone is used | the thirteen `test/neg/not-yet-*.bk` twins, one per declared arm |
+| `Parse` | the parser cannot proceed | `test/neg/parse-arrow.bk`, `test/neg/parse-comment.bk`, `test/neg/parse-paren.bk` |
 
-Exhaustiveness is Stage C, so `NonExhaustive` and `DuplicatePattern` have no
-M0 reporter yet and a match arm list only types.  Every error the judgment
-reports at Stage B carries the point span `1:1-1:1`, because the surface
-tree carries no position at any node (D-B-50).
+Every error the judgment reports carries the point span `1:1-1:1`, because
+the surface tree carries no position at any node (D-B-50).  A `.err` golden
+holds the first two words of the printed line, or the whole line when it
+holds more than two words (D-C-14).
 
-`Arity` has no M0 reporter either.  The M0 type grammar writes a type name
-with no argument list, so `conv_ty` builds every `Con` with the empty list and
-`unify_list` only ever compares two empty lists.  The arity test guards the
-constructor path for the milestone that adds a type application (D-B-60).  The
-three names stay in the table because the set is closed at M0 and a thirteenth
-name is a halt blocker.
+`Arity` has no M0 reporter and no twin.  The M0 type grammar writes a type
+name with no argument list, so `conv_ty` builds every `Con` with the empty
+list and `unify_list` only ever compares two empty lists.  The arity test
+guards the constructor path for the milestone that adds a type application
+(D-B-60).  The name stays in the table because the set is closed at M0 and a
+thirteenth name is a halt blocker.
 
 ### 9.7 The judgment
 
@@ -396,3 +397,42 @@ fixture `.inst` list checks against that scheme, which holds the scheme
 general enough;  and the one strictly more general annotation in the fixture
 `.over` file is REJECTED with `Mismatch`, which holds the scheme no more
 general than the term earns.
+
+### 9.8 Exhaustiveness and redundant payload patterns
+
+The `match` judgment types every arm, zonks the scrutinee type, checks
+redundant arms, and then checks exhaustiveness. All errors retain the point
+span `1:1-1:1` because the AST has no node positions.
+
+For a closed variant row, each occurrence of each label needs complete
+payload coverage. The walk selects the payload patterns naming that
+occurrence and recursively checks them against its zonked payload type.
+Thus `< a < b n > >` and `< a < c n > >` together cover
+`< a : < b : int, c : int > >`, while `< a 0 >` alone does not cover
+`< a : int >`. A name or wildcard covers every value at its own depth.
+An open variant tail still needs a name or wildcard at that depth.
+
+A missing outer occurrence retains the witness `LABEL ^ K`. A missing
+payload adds its path, such as `a ^ 0 payload: c ^ 0` or
+`a ^ 0 payload: a literal arm list`. Literal lists, including bool and unit,
+still require a name or wildcard. Other non-record, non-variant types
+likewise need a name or wildcard.
+
+A record pattern covers its record type when every field constraint covers
+that field's type. Field constraints use the same label and occurrence
+indices as inference. The check accepts a total record pattern, including
+inside a variant payload. It conservatively refuses coverage assembled from
+multiple partial record patterns; it does not compute their product space.
+
+A variant or literal arm is redundant only when an earlier such arm subsumes
+its full pattern. Names and wildcards inside a payload subsume every pattern;
+literals must agree; injections must agree on label, occurrence and payload;
+record constraints must each be subsumed at the same field occurrence.
+Disjoint payload patterns are allowed. Top-level name, wildcard and record
+arms retain the existing policy of not producing `DuplicatePattern`.
+
+The walk allocates payload pattern lists to recurse through nested patterns.
+At each variant node, occurrence indexing reads the row repeatedly and
+payload selection scans the candidate patterns per occurrence. This replaces
+the original Stage C no-allocation claim; the walk is not linear. The
+repository's trusted-core line bound remains unchanged.

@@ -1,0 +1,2 @@
+(* a scope, declared and refused at M0 *)
+let a = scope f

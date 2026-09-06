@@ -1,0 +1,3 @@
+(* an application whose callee holds an int and not a function *)
+let n = 1
+let a = n 2

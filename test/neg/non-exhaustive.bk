@@ -1,0 +1,2 @@
+(* a closed variant row of two occurrences under one arm *)
+let g v = match (v : < a : int, a : int >) with | < a ^ 0 p > -> p

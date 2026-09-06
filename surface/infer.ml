@@ -330,6 +330,135 @@ and pat_fields (st : state) (tail : Types.row)
       let* (row, more_binds, st3) = pat_fields st2 row1 more in
       Ok (row, binds @ more_binds, st3)
 
+(* An earlier pattern subsumes a later one only when its payload does too.
+   Names bind values without restricting them.  Record constraints address
+   the same shared slots as infer_pat. *)
+let rec subsumes (p : Ast.pat) (q : Ast.pat) : bool =
+  match p with
+  | Ast.PVar _ | Ast.PWild -> true
+  | Ast.PLit l ->
+      (match q with
+      | Ast.PLit m -> Literal.equal l m
+      | Ast.PVar _ | Ast.PWild | Ast.PInj (_, _, _) | Ast.PRec (_, _) -> false)
+  | Ast.PInj (l, k, inner) ->
+      (match q with
+      | Ast.PInj (m, j, other) ->
+          Label.equal l m && Label.occ_equal k j && subsumes inner other
+      | Ast.PVar _ | Ast.PWild | Ast.PLit _ | Ast.PRec (_, _) -> false)
+  | Ast.PRec (fs, _) ->
+      (match q with
+      | Ast.PRec (gs, _) ->
+          List.for_all
+            (fun (l, k, inner) ->
+              List.exists
+                (fun (m, j, other) ->
+                  Label.equal l m && Label.occ_equal k j && subsumes inner other)
+                gs)
+            fs
+      | Ast.PVar _ | Ast.PWild | Ast.PLit _ | Ast.PInj (_, _, _) -> false)
+
+(* Keep the top-level diagnostic policy: names and records do not name
+   a single variant occurrence or literal.  Only a subsumed arm is dead. *)
+let duplicate_arm (arms : Ast.arm list) : (unit, Error.t) result =
+  let rec scan front rest =
+    match rest with
+    | [] -> Ok ()
+    | (p, _) :: more ->
+        let duplicate l k =
+          if List.exists (fun q -> subsumes q p) front then
+            Error (Error.duplicate_pattern nowhere l k)
+          else scan (p :: front) more
+        in
+        (match p with
+        | Ast.PInj (l, k, _) -> duplicate l k
+        | Ast.PLit l ->
+            duplicate (Label.of_string (Print.literal l)) Label.occ_zero
+        | Ast.PVar _ | Ast.PWild | Ast.PRec (_, _) -> scan front more)
+  in
+  scan [] arms
+
+let is_catch_all (p : Ast.pat) : bool =
+  match p with
+  | Ast.PVar _ | Ast.PWild -> true
+  | Ast.PLit _ | Ast.PInj (_, _, _) | Ast.PRec (_, _) -> false
+
+let is_literal (p : Ast.pat) : bool =
+  match p with
+  | Ast.PLit _ -> true
+  | Ast.PVar _ | Ast.PWild | Ast.PInj (_, _, _) | Ast.PRec (_, _) -> false
+
+(* Select every payload pattern that addresses this occurrence.  The
+   recursive check combines disjoint inner arms without counting a
+   refutable payload as full coverage of its outer injection. *)
+let payloads (pats : Ast.pat list) (l : Label.t) (k : int) : Ast.pat list =
+  List.filter_map
+    (fun p ->
+      match p with
+      | Ast.PInj (m, j, inner) ->
+          if Label.equal l m && Int.equal k (Label.occ_to_int j) then Some inner
+          else None
+      | Ast.PVar _ | Ast.PWild | Ast.PLit _ | Ast.PRec (_, _) -> None)
+    pats
+
+let rec slot (row : Types.row) (l : Label.t) (k : int) : Types.ty option =
+  match row with
+  | Types.REmpty | Types.RVar _ -> None
+  | Types.RExt (m, t, more) ->
+      if Label.equal l m && Int.equal k 0 then Some t
+      else slot more l (if Label.equal l m then k - 1 else k)
+
+(* Inputs are zonked.  Closed variants recurse through the payload type.
+   A record payload is total when one arm has total constraints at every
+   field; separate partial record arms are conservatively refused. *)
+let rec missing (t : Types.ty) (pats : Ast.pat list) : string option =
+  if List.exists is_catch_all pats then None
+  else
+    match t with
+    | Types.Variant row ->
+        (match Row.tail_of row with
+        | Types.RVar _ -> Some "the open tail"
+        | Types.REmpty | Types.RExt (_, _, _) -> missing_row row row pats)
+    | Types.Record row ->
+        if List.exists (total_record row) pats then None
+        else Some ("a value of type " ^ Pp.ty t)
+    | Types.Var _ | Types.Con (_, _) | Types.Arrow (_, _, _, _) | Types.Code (_, _) ->
+        if not (List.is_empty pats) && List.for_all is_literal pats then
+          Some "a literal arm list"
+        else Some ("a value of type " ^ Pp.ty t)
+
+and missing_row (whole : Types.row) (rest : Types.row) (pats : Ast.pat list) :
+    string option =
+  match rest with
+  | Types.REmpty | Types.RVar _ -> None
+  | Types.RExt (l, t, more) ->
+      let k = Row.occurrences l whole - Row.occurrences l more - 1 in
+      let inner = payloads pats l k in
+      let here = Label.to_string l ^ " ^ " ^ string_of_int k in
+      if List.is_empty inner then Some here
+      else
+        Option.fold
+          ~none:(missing_row whole more pats)
+          ~some:(fun witness -> Some (here ^ " payload: " ^ witness))
+          (missing t inner)
+
+and total_record (row : Types.row) (p : Ast.pat) : bool =
+  match p with
+  | Ast.PRec (fs, _) ->
+      List.for_all
+        (fun (l, k, inner) ->
+          Option.fold ~none:false
+            ~some:(fun t -> Option.is_none (missing t [ inner ]))
+            (slot row l (Label.occ_to_int k)))
+        fs
+  | Ast.PVar _ | Ast.PWild -> true
+  | Ast.PLit _ | Ast.PInj (_, _, _) -> false
+
+let exhaustive (_st : state) (t : Types.ty) (arms : Ast.arm list) :
+    (unit, Error.t) result =
+  Option.fold ~none:(Ok ())
+    ~some:(fun witness -> Error (Error.non_exhaustive nowhere witness))
+    (missing t (List.map fst arms))
+
 (* The judgment of M0-PLAN.md:144:  a type, a residual row, a use count
    and the state that carries the store and the level. *)
 let rec infer (st : state) (env : Env.t) (e : Ast.expr) :
@@ -430,7 +559,10 @@ let rec infer (st : state) (env : Env.t) (e : Ast.expr) :
       let* (sct, scr, usc, st1) = infer st env scrut in
       let (res, st2) = fresh_ty st1 in
       let* (u, st3) = infer_arms st2 env sct res scr arms in
-      Ok (res, scr, Usage.add usc u, st3)
+      let (shape, st4) = zonk st3 sct in
+      let* () = duplicate_arm arms in
+      let* () = exhaustive st4 shape arms in
+      Ok (res, scr, Usage.add usc u, st4)
   | Ast.Ann (v, t) ->
       let* (want, _, st1) = conv_ty st [] t in
       let* (r, u, st2) = check st1 env v want in

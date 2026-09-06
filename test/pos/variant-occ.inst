@@ -1,2 +1,2 @@
 tagged
-match tagged with | < n ^ 1 k > -> k | < n j > -> 0
+match tagged with | < n ^ 1 k > -> k | < n j > -> 0 | rest -> 0

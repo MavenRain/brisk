@@ -1,0 +1,2 @@
+(* a resource declaration, declared and refused at M0 *)
+resource Socket = int

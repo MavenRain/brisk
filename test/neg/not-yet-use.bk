@@ -1,0 +1,2 @@
+(* the use form, declared and refused at M0 *)
+let a = use x as r in r

@@ -1,0 +1,2 @@
+(* a recursive binding whose body holds no lambda *)
+let rec x = x + 1

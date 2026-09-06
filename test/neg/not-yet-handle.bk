@@ -1,0 +1,2 @@
+(* a handler, declared and refused at M0 *)
+let a = handle e with { }

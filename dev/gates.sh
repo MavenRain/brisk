@@ -174,16 +174,20 @@ leg_parse () {
   return 1
 }
 
-# SUITE-CHECK (M0-PLAN.md:249, D-B-23).  The leg builds first, so one leg
-# alone is honest, then runs test/main.exe over the positive fixtures and
-# the occurs twins and checker regressions.  A list shorter than three
-# entries is a failure,
-# because an empty glob would otherwise pass with nothing checked.  The
-# rule that a suite needs a positive and a twin lives here and not in the
-# exit code of the driver, because SB-G7 runs one twin alone and holds
-# that run at exit 0 (D-B-48).
+# SUITE-CHECK (M0-PLAN.md:249, D-B-23, D-C-17, D-C-18).  The leg builds
+# first, so one leg alone is honest, then runs test/main.exe over every
+# positive fixture and every negative twin of the tree.  The glob names
+# the two directories and no family inside them, so a deleted member of
+# any family is seen (D-C-17).  A list shorter than three entries is a
+# failure, because an empty glob would otherwise pass with nothing
+# checked.  The two floors below hold the counts the tree has earned, so
+# a glob that shrinks fails the leg instead of passing with fewer files
+# (D-C-18).  The rule that a suite needs a positive and a twin lives here
+# and not in the exit code of the driver, because SB-G7 runs one twin
+# alone and holds that run at exit 0 (D-B-48).
 leg_suite_check () {
   local out code line n p q
+  local pos_floor=18 neg_floor=36
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
   if [[ $code -ne 0 || -n $out ]]; then
@@ -194,8 +198,7 @@ leg_suite_check () {
   fi
   local files=(
     $ROOT/test/pos/*.bk(N)
-    $ROOT/test/neg/occurs-*.bk(N)
-    $ROOT/test/neg/check-*.bk(N)
+    $ROOT/test/neg/*.bk(N)
   )
   if [[ ${#files} -lt 3 ]]; then
     print -r -- "suite-check fixtures=${#files}"
@@ -209,13 +212,20 @@ leg_suite_check () {
   n=$(field "$line" files)
   p=$(field "$line" pos)
   q=$(field "$line" neg)
-  if [[ $code -eq 0 && -n $n && -n $p && -n $q ]] && [[ $p -gt 0 && $q -gt 0 ]]
-  then
-    print -r -- "PASS SUITE-CHECK positives=$p twins=$q"
-    return 0
+  if [[ $code -ne 0 || -z $n || -z $p || -z $q ]]; then
+    print -r -- "FAIL SUITE-CHECK"
+    return 1
   fi
-  print -r -- "FAIL SUITE-CHECK"
-  return 1
+  if [[ $p -lt $pos_floor ]]; then
+    print -r -- "FAIL SUITE-CHECK pos=$p floor=$pos_floor"
+    return 1
+  fi
+  if [[ $q -lt $neg_floor ]]; then
+    print -r -- "FAIL SUITE-CHECK neg=$q floor=$neg_floor"
+    return 1
+  fi
+  print -r -- "PASS SUITE-CHECK positives=$p twins=$q"
+  return 0
 }
 
 # DENOMINATORS (M0-PLAN.md:253).  The sidecar holds the record, the

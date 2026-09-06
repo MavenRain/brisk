@@ -1,0 +1,2 @@
+(* the row fold, declared and refused at M0 *)
+let a = fold_row r

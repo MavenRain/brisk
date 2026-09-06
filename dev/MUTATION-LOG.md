@@ -314,3 +314,145 @@ lines, more than the row predicts, and the predicted line stands on
 `identity.bk`.  SB-M1 hangs and the SUITE tier ceiling of 300 s catches it.
 The SUITE-CHECK leg is therefore falsifiable at the scheme part, at the
 instantiation part, at the twin part and at the tier ceiling.
+
+## Stage C
+
+Copy method:  for each check, `tar -C /Users/oobi/Documents/brisk --exclude
+./_build --exclude ./.git -cf - . | tar -C SCRATCH/stageC/mut-N -xf -`, then
+`chmod -R u+w SCRATCH/stageC/mut-N` (D-B-56), then `zsh
+SCRATCH/stageC/mut-N/dev/pin-dune.sh dune build @all`, which prints `build
+exit=0 bytes=0` for all five copies.  `dev/gates.sh` locates its own root, so a
+copy gates itself.  No repository file was edited at any point.
+
+Clean baseline, recorded on every copy before its mutation:
+
+```
+CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=44 fail=0
+PASS SUITE-CHECK positives=14 twins=30
+```
+
+at exit 0.  The command of every row is `timeout 300 zsh
+SCRATCH/stageC/mut-N/dev/gates.sh --leg suite-check`, under the outer timeout
+because the `--leg` dispatch carries no watchdog (D-B-62).
+
+### SC-M1 a deleted twin
+
+Mutation:  `rm mut-1/test/neg/duplicate-arm.bk` and `duplicate-arm.err`.
+
+Catching leg:  SUITE-CHECK, at the `neg` floor of D-C-18.  The output holds:
+
+```
+CHECK files=43 pos=14 neg=29 inst=31 over=14 ok=43 fail=0
+FAIL SUITE-CHECK neg=29 floor=30
+```
+
+The leg exits 1.  Every remaining file still checks, `fail=0`, so the floor and
+not a CHECK-FAIL line is what catches a deleted twin.  This is the reason
+D-C-18 writes a floor:  a glob alone would shrink in silence.  Result: KILLED.
+
+### SC-M2 a renamed error
+
+Mutation:  in `mut-2/lib/error.ml` the string `name_of` answers for
+`NonExhaustive` reads `NonExhaustiveArms`.  The mutant builds at exit 0.
+
+Catching leg:  SUITE-CHECK, at the head compare of `check_neg`.  The output
+holds:
+
+```
+CHECK-FAIL .../mut-2/test/neg/non-exhaustive-lit.bk the error head is [NonExhaustiveArms 1:1-1:1] and the golden is [NonExhaustive 1:1-1:1]
+CHECK-FAIL .../mut-2/test/neg/non-exhaustive-open.bk the error head is [NonExhaustiveArms 1:1-1:1] and the golden is [NonExhaustive 1:1-1:1]
+CHECK-FAIL .../mut-2/test/neg/non-exhaustive.bk the error head is [NonExhaustiveArms 1:1-1:1] and the golden is [NonExhaustive 1:1-1:1]
+CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=41 fail=3
+FAIL SUITE-CHECK
+```
+
+The leg exits 1.  The brief row names `non-exhaustive.bk` and the line stands
+on that file;  two more twins fail as well, because the three NonExhaustive
+twins share one head.  The mutation is caught more widely than the row predicts
+and not less widely (judge:F3).  Result: KILLED.
+
+### SC-M3 the literal-arm clause
+
+Mutation:  in `mut-3/surface/infer.ml` the D-C-4 clause of `other_walk` reads
+`else if literal_arms arms then Ok ()` in place of the `Error
+(Error.non_exhaustive nowhere "a literal arm list")` it holds, so a literal arm
+list with no catch-all is accepted.  The mutant builds at exit 0.
+
+Catching leg:  SUITE-CHECK, at the twin part.  The output holds:
+
+```
+CHECK-FAIL .../mut-3/test/neg/non-exhaustive-lit.bk the file checks clean and the golden names NonExhaustive
+CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=43 fail=1
+FAIL SUITE-CHECK
+```
+
+The leg exits 1 and the line is the line the brief row names.  One file fails
+and one only, so `non-exhaustive-lit.bk` and the D-C-4 clause stand for each
+other.  Result: KILLED.
+
+### SC-M4 the open-tail clause
+
+Mutation:  in `mut-4/surface/infer.ml` the `RVar` arm of `variant_walk` reads
+`| Types.RVar _ -> Ok ()` in place of the catch-all test and the `the open
+tail` error, so the D-C-3 clause is gone.  The mutant builds at exit 0.
+
+Catching leg:  SUITE-CHECK, at the twin part.  The output holds:
+
+```
+CHECK-FAIL .../mut-4/test/neg/non-exhaustive-open.bk the file checks clean and the golden names NonExhaustive
+CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=43 fail=1
+FAIL SUITE-CHECK
+```
+
+The leg exits 1 and the line is the line the brief row names.  SC-M3 and SC-M4
+kill on different files, so the closed reading and the open reading of the walk
+are two clauses under one error name (D-C-31).  Result: KILLED.
+
+### SC-M5 the duplicate-arm rule
+
+Mutation:  in `mut-5/surface/infer.ml` the one comparison of D-C-7 reads `|
+(KAt (_, _), KAt (_, _)) -> false`, so `key_equal` never answers equal.  The
+mutant builds at exit 0.
+
+Catching leg:  SUITE-CHECK, at the twin part.  The output holds:
+
+```
+CHECK-FAIL .../mut-5/test/neg/duplicate-arm.bk the error head is [NonExhaustive 1:1-1:1] and the golden is [DuplicatePattern 1:1-1:1]
+CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=43 fail=1
+FAIL SUITE-CHECK
+```
+
+The leg exits 1.  The brief row predicts the line `the file checks clean and
+the golden names DuplicatePattern`.  The printed line names the head instead,
+because the duplicate rule runs before the walk (D-C-8):  with the rule
+disabled the arm list reaches the walk, which refuses the same file for its
+open tail and reports `NonExhaustive`.  The twin therefore still fails, on a
+stronger line than the row predicts and not on a weaker one, the SB-M3b reading
+of D-B-62 (judge:F2).  Result: KILLED.
+
+### Summary
+
+Five mutants ran, one per copy, and all five died.  SC-M3 and SC-M4 print
+exactly the CHECK-FAIL line the brief row names, each on its own twin.  SC-M1
+dies on the `neg` floor with `fail=0`, which is the only reading that catches a
+deleted fixture.  SC-M2 prints three head lines of which one is the named line.
+SC-M5 prints a head line and not the predicted clean line, because the
+duplicate rule answers before the walk.  The SUITE-CHECK leg is therefore
+falsifiable at the twin part, at the head compare, at the floor and at the two
+clauses of the exhaustiveness walk.
+
+### Stage C payload regression sensitivity (2026-09-06)
+
+In the temporary review copy, keep the new fixtures and replace only
+surface/infer.ml with the original staged version. Run
+`zsh dev/gates.sh --leg suite-check`. The three positives payload-disjoint,
+payload-fallback and payload-occurrences fail with DuplicatePattern. The four
+negatives payload-literal, payload-nested, payload-open and
+payload-record-partial fail because their programs check clean. The summary
+is CHECK files=54 pos=18 neg=36 inst=32 over=14 ok=47 fail=7, exit 1.
+
+Restore the fixed inference implementation and run the complete battery.
+SUITE-CHECK prints CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0,
+and the battery exits 0 with GATES-OK. The payload-duplicate and
+payload-nested-duplicate fixtures also pass, preserving rejection of
+subsumed payload arms while the disjoint arms now type.

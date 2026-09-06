@@ -1,0 +1,2 @@
+(* the affine field take, declared and refused at M0 *)
+let a = take l from r

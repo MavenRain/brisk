@@ -482,3 +482,217 @@ the line the plan row names, SB-M3b on eight lines of which one is the named
 line, and SB-M1 on the SUITE tier ceiling of 300 s, because the row occurs
 check is a termination guard before it is a diagnostic.  `dev/MUTATION-LOG.md`
 holds the mutations, the commands, the catching legs and the printed evidence.
+
+## Stage C (2026-09-06)
+
+The error surface.  Stage C adds the exhaustiveness walk over variant rows and
+over literal arm lists, the duplicate-arm rule, twenty-two negative twins with
+their goldens, the whole-line golden compare, the widened SUITE-CHECK glob with
+two floors, and the SPEC.md error table read as built.  No IR, no VM and no
+driver:  those are Stage D and Stage E.  The error set stays closed at twelve
+names.
+
+### Deliverables
+
+| File | What it does |
+| --- | --- |
+| `surface/infer.ml` | 825 lines, 661 at the end of Stage B.  Holds `arm_key`, `key_of`, `key_equal`, `clash`, `dup_scan` and `duplicate_arm` for the duplicate rule (D-C-7 to D-C-9), then `is_catch_all`, `is_literal`, `top_pat`, `has_catch_all`, `literal_arms`, `covers_occ`, `covered`, `uncovered`, `variant_walk`, `other_walk` and `exhaustive` for the walk (D-C-1 to D-C-6).  The `Ast.Match` arm calls `duplicate_arm` first, then `infer_arms`, then `exhaustive` over the zonked scrutinee type. |
+| `test/main.ml` | 309 lines, 297 at the end of Stage B.  `check_neg` compares the whole error line when the golden holds more than two words and the first two words when it does not (D-C-14, D-C-16).  The CHECK summary line, the exit rule and the D-B-25 classification are unchanged. |
+| `dev/gates.sh` | 405 lines.  `leg_suite_check` globs `$ROOT/test/neg/*.bk(N)` in place of the `occurs-*` and `check-*` globs (D-C-17) and holds `pos_floor=14` and `neg_floor=30`, which print `FAIL SUITE-CHECK pos=P floor=14` or `FAIL SUITE-CHECK neg=Q floor=30` (D-C-18, D-C-39). |
+| `test/neg/*.bk` and `*.err` | 22 new twins:  nine named twins of D-C-10 and thirteen `not-yet-*` twins of D-C-13.  The thirteen Not_yet goldens hold the whole line, `Not_yet 1:1-1:1 the form arrives at M1` or `at M2`.  The seventeen older goldens keep the two-word head. |
+| `test/pos/variant-match.bk`, `.fmt`, `test/pos/variant-occ.inst` | Each gains a NAME catch-all arm `\| rest -> 0`, never a wildcard, because D-B-52 bans a wildcard arm inside `test/` and D-C-3 refuses an open tail with no catch-all (D-C-22).  `variant-match.scheme` and every other golden hold. |
+| `SPEC.md` | 460 lines, 384 at the end of Stage B.  Section 9.6 gains the negative-twin column with `Arity` reading `none at M0, see D-B-60`, the disclosure shrinks to the `Arity` case, and a new section 9.8 states the walk. |
+
+### Gates
+
+Every gate below was rerun by the judge on the working tree of this run.
+
+| Id | Result | Evidence |
+| --- | --- | --- |
+| SC-G1 | PASS | `zsh dev/pin-dune.sh dune build @all` gives `build exit=0 bytes=0`. |
+| SC-G2 | PASS | The sweep over the paths of the brief section 3 prints `G2 missing=0`, over `surface/infer.ml`, `test/main.ml`, `dev/gates.sh`, `SPEC.md` and the 22 new twin pairs.  `fd -e bk . test/neg \| wc -l` prints 30. |
+| SC-G3 | PASS | `G3 twins=30 goldens=30 orphans=0`:  every `test/neg/NAME.bk` has a `NAME.err` sibling and no `.err` stands alone. |
+| SC-G4 | PASS | `zsh dev/house.sh` exits 0 and prints `HOUSE no-exception OK`, `HOUSE no-wildcard-no-partial OK`, `HOUSE no-mutable-state OK`, `HOUSE no-bool-match-no-loop OK`, `HOUSE no-em-dash OK` and `HOUSE OK`. |
+| SC-G5 | PASS | `timeout 300 zsh dev/gates.sh --leg suite-check` exits 0 and prints `CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=44 fail=0` then `PASS SUITE-CHECK positives=14 twins=30`. |
+| SC-G6 | PASS | `_build/default/test/main.exe` with no argument prints `CHECK-EMPTY` at exit 2.  On the scratch copy `SCRATCH/stageC/g6/neg/unbound.bk` whose `.err` golden was changed to `Mismatch 1:1-1:1` it prints `CHECK-FAIL .../g6/neg/unbound.bk the error head is [Unbound 1:1-1:1] and the golden is [Mismatch 1:1-1:1]` then `CHECK files=1 pos=0 neg=1 inst=0 over=0 ok=0 fail=1` at exit 1.  The copy carries the change, never the tree. |
+| SC-G7 | PASS | `main.exe` over the nine files of D-C-10 prints `CHECK files=9 pos=0 neg=9 inst=0 over=0 ok=9 fail=0` at exit 0.  The nine goldens read `Unbound`, `MissingLabel`, `Mismatch`, `NotAFunction`, `RecursiveValue`, `NonExhaustive` three times and `DuplicatePattern`, each at `1:1-1:1`. |
+| SC-G8 | PASS | `main.exe` over the thirteen `not-yet-*.bk` files prints `CHECK files=13 pos=0 neg=13 inst=0 over=0 ok=13 fail=0` at exit 0.  `rg -l "arrives at M1" test/neg \| wc -l` prints 9 and the M2 form prints 4. |
+| SC-G9 | PASS | On the scratch copy `SCRATCH/stageC/g9/neg/non-exhaustive.bk` with the missing arm `\| < a ^ 1 q > -> q` ADDED, `main.exe` prints `CHECK-FAIL .../g9/neg/non-exhaustive.bk the file checks clean and the golden names NonExhaustive` then `CHECK files=1 pos=0 neg=1 inst=0 over=0 ok=0 fail=1` at exit 1, so the twin fails for its own reason. |
+| SC-G10 | PASS | `rg -c '^  \| [A-Z]' lib/error.ml` prints 12, unchanged by this stage. |
+| SC-G11 | PASS | `timeout 300 zsh dev/gates.sh --leg parse` exits 0 and prints `PARSE files=41 ok=41 fail=0` then `PASS PARSE fixtures=41`.  The 22 new twins do not enter PARSE, because no name starts with `parse-` (D-C-12). |
+| SC-G12 | PASS | `zsh dev/gates.sh` exits 0 and prints `PASS BUILD`, `PASS HOUSE`, `PARSE files=41 ok=41 fail=0` with `PASS PARSE fixtures=41`, `CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=44 fail=0` with `PASS SUITE-CHECK positives=14 twins=30`, `DENOM raw_ms_per_kloc=386.500 median_ms=1923.223 lines=4976 files=19` with `PASS DENOMINATORS raw_ms_per_kloc=386.500`, then `MEASURE BUILD tier=MED elapsed_ms=464.886 exit=0`, `MEASURE HOUSE tier=FAST elapsed_ms=185.178 exit=0`, `MEASURE PARSE tier=MED elapsed_ms=158.530 exit=0`, `MEASURE SUITE-CHECK tier=SUITE elapsed_ms=195.330 exit=0` and `MEASURE DENOMINATORS tier=SLOW elapsed_ms=18714.444 exit=0`, then `GATES-OK`.  No `brisk-gates-*` directory is left under `TMPDIR`. |
+| SC-G13 | PASS | `zsh dev/trusted-lines.sh` exits 0 and prints `TRUSTED-LINES core=1208/2000 vm=0/800 OK`.  1208 is at or under the 1274 cap of the stage, which is 1044 at the end of Stage B plus the 230 lines Stage C may spend.  Stage D keeps 792 lines. |
+| SC-G14 | PASS | `rg -c -e "$(printf '\342\200\224')" --glob '!.git' --glob '!_build'` over the repository exits 1, the no-hit exit, after every append of this run. |
+| SC-G15 | PASS | `git log --oneline` prints `7088280 M0 Stage B: types, rows and inference`, `71353e1 M0 Stage A: skeleton, lexer and parser` and `979a71a M0 Stage 0: the harness`, top to bottom.  `git status --porcelain` holds 51 lines at the gate run, seven modified paths and 44 new `test/neg` paths, none under `_build`, and 53 lines after this log and `dev/MUTATION-LOG.md` are appended.  The pin `/Users/oobi/Documents/affine-lang-tot-pin` prints `6d0d48d` with porcelain 0.  No `git add`, `stash`, `checkout`, `restore`, `reset`, `rm`, `mv` or `commit` ran in the repository. |
+| SC-G16 | PASS | `rg -n 'leg (FAST\|MED\|SLOW\|SUITE) (CARRY\|SUITE-VM\|M0-E2E\|M0-TIME\|M0-FLOOR\|M0-RATIO\|TRUSTED-LINES)' dev/gates.sh` exits 1, so no leg passes with no fixture behind it. |
+| SC-G17 | PASS | Over section 9.6, `SPEC.md` lines 345 to 381, the row count is 12 and eleven rows name a `test/neg` fixture:  `G17 rows=12 twins-named=11 arity=none at M0`, with the cell `\| `Arity` \| a constructor or a primitive gets the wrong count \| none at M0, see D-B-60 \|`.  The file-wide form of the command prints 13, because it also matches the Stage A grammar row at `SPEC.md:163` that opens `\| `Code[r, t]` \| `TCode (r, t)` \| declared, refused`.  SC-G10 confirms the error set is still twelve (D-C-38). |
+
+### Numbers
+
+| Measure | Value |
+| --- | --- |
+| `surface/infer.ml` | 825 lines, 661 at the end of Stage B, 164 added |
+| `test/main.ml` | 309 lines, 297 at the end of Stage B, 12 added |
+| `dev/gates.sh` | 405 lines |
+| `SPEC.md` | 460 lines, 384 at the end of Stage B |
+| `lib/error.ml` | 140 lines, unchanged, 12 error names |
+| Positives | 14, each with a `.fmt`, a `.scheme`, a `.inst` and a `.over` golden |
+| Twins | 30:  2 occurs, 3 `check-*`, 3 `parse-*`, 9 named and 13 `not-yet-*` |
+| Goldens by shape | 30 `.err` goldens, 13 whole-line and 17 two-word (D-C-14) |
+| Not_yet twins by milestone | 9 M1 and 4 M2 (D-C-15) |
+| SUITE-CHECK counts | files 44, pos 14, neg 30, inst 31, over 14, ok 44, fail 0 |
+| SUITE-CHECK floors | `pos_floor=14` and `neg_floor=30` |
+| PARSE leg file count | 41, ok 41, fail 0 |
+| MEASURE BUILD | 464.886 ms, tier MED |
+| MEASURE HOUSE | 185.178 ms, tier FAST |
+| MEASURE PARSE | 158.530 ms, tier MED |
+| MEASURE SUITE-CHECK | 195.330 ms, tier SUITE, ceiling 300 s |
+| MEASURE DENOMINATORS | 18714.444 ms, tier SLOW |
+| DENOMINATORS of this run | raw_ms_per_kloc 386.500, median_ms 1923.223, lines 4976, files 19 |
+| Trusted lines | core 1208 of 2000, vm 0 of 800, cap 1274 for the stage |
+| Mutants | 5 run, 5 killed |
+| Repository state | 3 commits, top `7088280`, porcelain 51 lines, none under `_build`;  pin `6d0d48d` with porcelain 0 |
+
+### Findings
+
+Two findings come from the verifier round, one from the fixer and three from
+the judge.  The cap is 7.
+
+- twins-theory:F1, high, FIXED.  The D-C-6 sentence holds two halves, one pass
+  over the row and no set on a closed row, and the shipped walk keeps the
+  second half alone.  `uncovered` calls `Row.occurrences` twice for each
+  element of the row and `covered` reads the whole arm list for each element,
+  so a row of R occurrences against A arms costs R times R plus R times A
+  steps.  The fixer did not make the walk linear, because an exact witness
+  `LABEL ^ K` needs the occurrence index of every element and that index needs
+  a per-label store, which the same D-C-6 sentence refuses, or a second read of
+  the row.  The cost is now stated as shipped in `SPEC.md` section 9.8 and in
+  the comment above `uncovered`, and the deviation from D-C-6 is disclosed
+  there.  No behaviour and no golden changed.
+- twins-theory:F2, low, CLOSED.  The builder report gives the `surface/infer.ml`
+  delta of the first attempt as 161 added lines.  The delta measured against
+  `git show 7088280:surface/infer.ml`, 661 lines, is 164 lines today, 825 less
+  661, and the eight disclosure lines of the fixer are inside that 164.  The
+  report prose is off by a few lines and no gate reads it.
+- judge:F1, medium, OPEN for the log reader.  The identity `D-C-28` carries two
+  meanings.  The builder report gives `D-C-28` to the closed-row probe of the
+  part-one investigation, and `SPEC.md` section 9.8 and the comment above
+  `uncovered` in `surface/infer.ml` give `D-C-28` to the cost disclosure of
+  twins-theory:F1.  The fixer read the next free identity from the shipped
+  files alone, where D-C-23 to D-C-27 stand, and did not see the report-only
+  identities D-C-28 to D-C-42.  The Decisions table below therefore holds two
+  `D-C-28` rows, one marked `probe` and one marked `as shipped`.  The judge
+  did not renumber, because the identity is written in two source files that
+  the judge does not own and a rename would move text under gate SC-G13 and
+  SC-G4 for no behaviour.  The stage after this one may fold the probe row into
+  a free identity.
+- judge:F2, low.  SC-M5 dies on a different line than the brief predicts.  The
+  brief row reads `the file checks clean and the golden names DuplicatePattern`.
+  The mutant prints `the error head is [NonExhaustive 1:1-1:1] and the golden is
+  [DuplicatePattern 1:1-1:1]`, because the duplicate rule runs before the walk
+  (D-C-8) and a mutant that never answers equal hands the arm list to the walk,
+  which then refuses the same file for the open tail.  The mutant is caught
+  more widely than the row predicts and not less widely, the SB-M3b reading of
+  D-B-62.  Result KILLED.
+- judge:F3, low.  SC-M2 catches three files and not one.  A renamed
+  `NonExhaustive` head fails `non-exhaustive.bk`, `non-exhaustive-open.bk` and
+  `non-exhaustive-lit.bk` together, because the three twins share one head.
+  The named line of the brief row stands on `non-exhaustive.bk`.
+- judge:F4, low.  The SC-G17 command of the brief counts 13 over the whole
+  `SPEC.md` and 12 over section 9.6.  The thirteenth hit is the grammar row of
+  section 6 at `SPEC.md:163`, which stands unchanged since Stage A and names a
+  type form and not an error name.  The gate is read over section 9.6, lines
+  345 to 381 (D-C-38), and SC-G10 holds the error set at twelve.
+
+### Decisions
+
+D-C-1 to D-C-20 come from the Stage C brief, each with the reason written
+there.  D-C-21 and D-C-22 are the orchestrator rulings of this run.  D-C-23
+onward come from the builders and the fixer.  Two rows carry the identity
+`D-C-28`, see judge:F1 above.
+
+| Id | Decision | Reason |
+| --- | --- | --- |
+| D-C-1 | The walk is one function `exhaustive : state -> Types.ty -> Ast.arm list -> (unit, Error.t) result`, called from the `Ast.Match` arm after `infer_arms` answers. | The arm list is typed by then, and a walk over an unresolved scrutinee cannot name the row it needs. |
+| D-C-2 | A scrutinee that resolves to `Variant row` with an `REmpty` tail needs one arm per OCCURRENCE of every label, counted by `Row.occurrences`, and a missing occurrence is `NonExhaustive` with the witness `LABEL ^ K`. | M0-PLAN.md:167 fixes the closed-row rule and R-M0-4 makes an occurrence and not a label the unit. |
+| D-C-3 | A scrutinee that resolves to `Variant row` with an `RVar` tail needs a catch-all arm, a `PVar` or a `PWild` at the top of one arm, and the witness without it is `the open tail`. | An open row can hold a label the arm list has never seen. |
+| D-C-4 | An arm list whose top patterns are literals needs a catch-all arm or a name arm, for int, for string and for bool alike, with the witness `a literal arm list`. | The value set of int and of string is not finite, and M0-PLAN.md:167 asks for the same answer at all three. |
+| D-C-5 | A scrutinee of any other type, `Con`, `Record`, `Arrow`, `Code` or an unresolved `Var`, needs a catch-all arm or a name arm and answers `NonExhaustive` without it. | One rule over every scrutinee form is what M0-PLAN.md:167 asks for, and the M0 walk then has no silent arm. |
+| D-C-6 | The walk costs one pass over the row and one pass over the arm list, and it allocates no set on a closed row. | M0-PLAN.md:167 fixes the cost.  The shipped walk keeps the no-allocation half and reads the row and the arm list again for each occurrence, disclosed at SPEC.md section 9.8, see twins-theory:F1. |
+| D-C-7 | Two arms that name the SAME occurrence of the same label at the same depth are `DuplicatePattern of span * Label.t * Label.occ`, reported at the second arm, and the rule reads the top pattern of each arm alone. | M0-PLAN.md:161 fixes the rule at the same occurrence and the same depth. |
+| D-C-8 | The duplicate check runs before the exhaustiveness walk and returns at the first duplicate. | A duplicated arm makes an occurrence count meaningless, and one error per match keeps the golden one line. |
+| D-C-9 | A repeated literal pattern is `DuplicatePattern` too, with the literal printed as the label text and the occurrence 0. | A second `\| 0 ->` arm is dead code by the same argument as a second `< l ^ 0 p >` arm. |
+| D-C-10 | The nine named twins are `unbound.bk`, `missing-label.bk`, `mismatch.bk`, `not-a-function.bk`, `rec-value.bk`, `non-exhaustive.bk`, `non-exhaustive-open.bk`, `non-exhaustive-lit.bk` and `duplicate-arm.bk`, each with its `.err` golden. | M0-PLAN.md:152-165 names one twin per reachable error and M0-PLAN.md:167 names three NonExhaustive situations, which need three fixtures and not one. |
+| D-C-11 | The bodies:  `non-exhaustive.bk` matches a closed two-occurrence variant under one arm, `non-exhaustive-open.bk` matches an open row with one label arm and no catch-all, `non-exhaustive-lit.bk` is `let f x = match x with \| 0 -> 1`, `duplicate-arm.bk` writes two arms over the same occurrence, `rec-value.bk` is a `let rec` over a non-function, `not-a-function.bk` applies an int, `missing-label.bk` selects a label a closed record lacks, `mismatch.bk` unifies int with string and `unbound.bk` names one free name. | Each body reaches its own arm and no other, which is what HALT-C-2 tests. |
+| D-C-12 | No twin name starts with `parse-`, so no new twin enters PARSE. | `leg_parse` globs `test/neg/parse-*.bk` alone and a twin that fails to type still parses. |
+| D-C-13 | One Not_yet twin per declared arm, thirteen files, `not-yet-take.bk`, `-use`, `-handle`, `-scope`, `-spawn`, `-join`, `-quote`, `-splice`, `-fold-row`, `-resource`, `-effect`, `-lolli` and `-code`, each the smallest form that reaches its arm. | M0-PLAN.md:168 asks for one twin per Not_yet arm and the round-trip fixtures prove each form parses. |
+| D-C-14 | A `.err` golden may hold the two-word head or the WHOLE error line, and `check_neg` compares the whole line when the golden holds more than two words.  The thirteen Not_yet goldens hold the whole line and every other golden keeps what it holds today. | Thirteen twins under one head cannot tell an M1 refusal from an M2 refusal, and the older goldens must not move. |
+| D-C-15 | Nine M1 twins, take, use, handle, scope, spawn, join, resource, effect and lolli, and four M2 twins, quote, splice, fold-row and code. | The refusal table of M0-PLAN.md:103-115 fixes the milestone of each form. |
+| D-C-16 | `check_neg` grows the whole-line comparison of D-C-14 and nothing else. | A driver rewrite would move every Stage B gate line. |
+| D-C-17 | `leg_suite_check` globs `$ROOT/test/pos/*.bk(N)` and `$ROOT/test/neg/*.bk(N)`, so every twin of the tree enters the leg. | M0-PLAN.md:249 says a missing twin is a FAIL and not a skip, and a glob that names one twin family cannot see a deleted member of another. |
+| D-C-18 | `leg_suite_check` holds `pos` at or above 14 and `neg` at or above 30, two floors written in the leg. | A glob shrinks silently when a fixture is deleted, and the floor is what makes SC-M1 fail the leg instead of skipping it. |
+| D-C-19 | The leg line stays `PASS SUITE-CHECK positives=P twins=Q`, and Stage C prints `CHECK files=44 pos=14 neg=30 inst=31 over=14 ok=44 fail=0` then `PASS SUITE-CHECK positives=14 twins=30`. | The counts are the falsifiable part of the leg line. |
+| D-C-20 | `SPEC.md` section 9.6 gains the negative-twin column, the `Arity` cell reads `none at M0, see D-B-60`, the disclosure shrinks to the `Arity` case, and a new section 9.8 states D-C-1 to D-C-9 in prose. | M0-PLAN.md:280 names the SPEC.md error table as a deliverable, and D-B-63 kept the column out only while the files were missing. |
+| D-C-21 | The seven orchestrator rulings of this run, one row.  (1) SCRATCH is the scratchpad of the run under `SCRATCH/stageC`.  (2) Every Bash command carries the token `# [skip-disk]`, because the Data volume sits just under the 30 GiB interlock and a brisk build is megabytes.  (3) The tree drifted after the brief was drafted:  the Stage B commit `7088280` gives 14 positives and 5 twins, so every count of the brief moves.  Twins after Stage C are 30, the floors are 14 and 30, SC-G5 reads `files=44 pos=14 neg=30 inst=31 over=14 ok=44 fail=0` with `positives=14 twins=30`, SC-M1 evidence is `FAIL SUITE-CHECK neg=29 floor=30`, the core cap is 1274 and PARSE holds at 41.  (4) HALT-C-1 is read as the three log subjects for every agent, and builder one also reads the porcelain of the kept first attempt.  (5) SC-G8 counts FILES, `rg -l` and not `rg -c`.  (6) The user was silent on section 9, so the five brief defaults stand:  no `neg/arity.bk`, HALT-C-1 as the precondition, three NonExhaustive twins, the widened glob with floors, the whole-line compare and no watchdog in `dev/gates.sh`.  (7) Builders number their own decisions from D-C-23. | The brief was drafted against a tree that the Stage B commit has since moved, and a count that no longer holds cannot gate anything. |
+| D-C-22 | HALT-C-7 of the first attempt is ruled and waived.  D-C-3 stands as ruled, an open tail with no catch-all is `NonExhaustive`, and `infer_arms` does not close the row.  The two committed positives gain a NAME catch-all arm and never a wildcard:  `test/pos/variant-match.bk` line 2 and `test/pos/variant-match.fmt` read `let size v = match v with \| < n x > -> x \| < s y > -> 0 \| rest -> 0`, and `test/pos/variant-occ.inst` line 2 reads `match tagged with \| < n ^ 1 k > -> k \| < n j > -> 0 \| rest -> 0`. | Accepting an open tail is unsound, and closing the row in `infer_arms` would leave D-C-3 with no reachable fixture and fire HALT-C-5, because every annotation tail is a flexible `fresh_row` (D-B-53).  A wildcard arm inside `test/` fails HOUSE (D-B-52), and a name arm adds no label, so `variant-match.scheme` and every other golden hold. |
+| D-C-23 | The D-C-5 witness reads `a value of type T`, with T the printed zonked scrutinee type. | The brief fixes a witness for D-C-2, D-C-3 and D-C-4 alone, and a witness that names the scrutinee tells the reader which form the walk refused. |
+| D-C-24 | The occurrence index of an `RExt` of a closed row is `Row.occurrences l whole` less `Row.occurrences l more` less one. | D-C-6 refuses a set, and an index counted over the walked prefix needs a per-label store. |
+| D-C-25 | `key_equal` answers false when both identities hold no injection and no literal, so two name arms are not a duplicate. | D-C-7 fixes the rule at the same occurrence of the same label, and a name arm names none. |
+| D-C-26 | A string literal prints with its quotes in the `DuplicatePattern` label text, so a repeated string arm reads `the pattern binds "x" occurrence 0 twice`. | D-C-9 asks for the printed literal, and the quotes tell a string literal from a name. |
+| D-C-27 | The `Ast.Match` arm zonks the scrutinee type once and hands the walk the resolved type, and the walk binds its state argument as `_st`. | D-C-1 fixes the signature, and a zonked type answers every question the walk asks, so the walk reads no store. |
+| D-C-28 (probe) | The closed-row probe annotates the scrutinee, `match (v : < a : int, b : int >) with \| < a p > -> p`. | A row that a pattern alone builds carries a flexible tail (D-B-53) and reaches the D-C-3 clause and never the D-C-2 clause. |
+| D-C-28 (as shipped) | The cost of the walk is stated as shipped in `SPEC.md` section 9.8 and above `uncovered`, R times R plus R times A steps, and the deviation from the one-pass half of D-C-6 is disclosed there. | An exact witness `LABEL ^ K` needs the occurrence index of every element, and that index needs a per-label store, which D-C-6 refuses, or a second read of the row.  See judge:F1 for the identity clash with the probe row. |
+| D-C-29 | Every probe golden holds the whole error line and not the two-word head. | A two-word head cannot tell the D-C-2 clause from the D-C-3 clause, and the whole-line compare of D-C-16 is itself under test. |
+| D-C-30 | Each probe carries a repaired twin under `SCRATCH/probes/fixed/neg` with the defect removed. | A probe that only prints its error does not show that it fires for its own reason, the HALT-C-2 argument. |
+| D-C-31 | `test/neg/non-exhaustive.bk` reads `let g v = match (v : < a : int, a : int >) with \| < a ^ 0 p > -> p`, the annotated-scrutinee form. | A row that a pattern alone builds carries a flexible tail (D-B-53) and reaches the D-C-3 clause, so the annotated scrutinee is the only M0 form that reaches the D-C-2 clause;  HALT-C-5 does not fire and SC-M3 and SC-M4 kill on different files. |
+| D-C-32 | `test/neg/missing-label.bk` holds two declarations, `let r = { a = 1 }` then `let b = r.b`. | The MissingLabel arm at `lib/unify.ml:154-172` needs an `REmpty` tail on the record side, and a let-bound record literal is the smallest M0 form that carries a closed row into the selection. |
+| D-C-33 | `test/neg/not-a-function.bk` binds the int first, `let n = 1` then `let a = n 2`. | `app_result` refuses on a resolved `Types.Con`, and a named callee is the form the round-trip fixtures write, so the twin tests the arm and not the callee grammar. |
+| D-C-34 | A repaired copy ran for all nine named twins under `SCRATCH/stageC/fixed2/neg` and not for `non-exhaustive.bk` alone;  all nine repaired copies check clean. | SC-G9 tests one twin and HALT-C-2 asks every twin to fail for its own reason. |
+| D-C-35 | The whole error line of each named twin was read through a probe copy whose golden holds four words, under `SCRATCH/stageC/witness/neg`. | `check_neg` compares the whole line only when the golden holds more than two words (D-C-14), and the three NonExhaustive twins must be shown to fire three distinct clauses under one two-word head. |
+| D-C-36 | Each Not_yet twin holds one comment line and one declaration, the smallest of the two or three declarations of its round-trip fixture. | D-C-13 asks for the smallest form that reaches the arm, and the refusal arms answer before they descend into a subexpression, so a free name in the body cannot answer Unbound first. |
+| D-C-37 | `not-yet-lolli.bk` and `not-yet-code.bk` annotate a lambda parameter, `let f x = (x : int -1> int)` and `let f x = (x : Code [  , int ])`, and not a free name. | A free name reaches the Unbound arm and would fail HALT-C-2, while a bound parameter leaves the type arm as the only refusal. |
+| D-C-38 | SC-G17 is counted over section 9.6 alone, `SPEC.md` lines 345 to 381, where it prints rows 12 and twins-named 11. | The file-wide pattern also matches the grammar row at `SPEC.md:163`, which stands unchanged since Stage A and names a type form, so the file-wide count of 13 counts one form row and not a thirteenth error name.  SC-G10 confirms the set is still twelve. |
+| D-C-39 | The two floors are the locals `pos_floor=14` and `neg_floor=30` of `leg_suite_check`, and the leg prints `FAIL SUITE-CHECK pos=P floor=14` or `FAIL SUITE-CHECK neg=Q floor=30` on a broken floor, while an earlier guard keeps the bare `FAIL SUITE-CHECK` line of Stage B. | D-C-18 fixes exactly two floor lines and a third message would move a Stage B gate line.  The floors subsume the old p and q above zero test of D-B-23 and D-B-55. |
+| D-C-40 | The negative twin column of section 9.6 names every file that stands behind a name, so the Mismatch cell also names the three `check-*.bk` twins, the Parse cell names all three `parse-*.bk` twins and the Not_yet cell names the thirteen `not-yet-*.bk` twins as a family. | A column read as built that named one file per name would hide the other twins the tree holds and would read as a promise smaller than the tree. |
+| D-C-41 | Section 9.8 states D-C-1 to D-C-9 and cites D-C-23 to D-C-27 inside the bullets that they refine, and it quotes the three printed witnesses. | Prose that stated the brief alone would not match the walk on disk, and the three NonExhaustive clauses share one two-word head and are told apart by the witness alone. |
+| D-C-42 | The old paragraph that read `Exhaustiveness is Stage C, so NonExhaustive and DuplicatePattern have no M0 reporter yet` is deleted and not rewritten, and the span sentence it carried moves beside the D-C-14 golden rule. | D-C-20 shrinks the disclosure to the `Arity` case, and the span rule of D-B-50 still holds for every error. |
+
+### Mutation checks
+
+The five checks of the brief section 5 ran on tar copies under
+`SCRATCH/stageC/mut-N`, never on the repository files, and the clean baseline
+of every copy was recorded first:  each copy prints `CHECK files=44 pos=14
+neg=30 inst=31 over=14 ok=44 fail=0` then `PASS SUITE-CHECK positives=14
+twins=30` at exit 0 before its mutation.  All five mutants died.  SC-M1 dies on
+the neg floor, SC-M2 on three head lines of which one is the named line, SC-M3
+and SC-M4 on the named `the file checks clean` line of their own twin, and
+SC-M5 on a head line and not on the line the row predicts, because the
+duplicate rule runs before the walk (D-C-8) and the walk then refuses the same
+file.  `dev/MUTATION-LOG.md` holds the mutations, the commands, the catching
+legs and the printed evidence.
+
+After this section and the Stage C section of `dev/MUTATION-LOG.md` were appended, the battery ran again and exits 0 with `PASS BUILD`, `PASS HOUSE`, `PASS PARSE fixtures=41`, `PASS SUITE-CHECK positives=14 twins=30`, `PASS DENOMINATORS raw_ms_per_kloc=232.418` and `GATES-OK`.  `dev/trusted-lines.sh` still prints `TRUSTED-LINES core=1208/2000 vm=0/800 OK`, the em-dash sweep still exits 1, and the porcelain reads 53 lines with the two logs added and nothing under `_build`.
+
+### Stage C payload review fixes (2026-09-06)
+
+The review found that top-label identity rejected disjoint nested arms and
+that top-label coverage accepted partial payloads. The fixes replace that
+identity test with recursive pattern subsumption and recurse through each
+closed variant occurrence's payload patterns. Record payloads accept a single
+total record pattern; coverage assembled from partial record patterns remains
+conservatively rejected. SPEC.md section 9.8 supersedes the earlier D-C-6,
+D-C-7 and D-C-28 implementation descriptions, including the no-allocation
+claim. No trusted-line bound or validation rule is relaxed.
+
+Four positive fixtures and six negative fixtures cover nested alternatives,
+literal fallback, repeated inner occurrences, record payloads, missing
+literal/nested/open/record coverage, and redundant payload arms. Seven new
+instantiations exercise both nested branches and both repeated occurrences.
+SUITE-CHECK floors rise to 18 positives and 36 negatives.
+
+Validation on the temporary copy before publishing: the complete gate battery
+prints GATES-OK, PARSE files=45 ok=45 fail=0, and CHECK files=54 pos=18 neg=36
+inst=38 over=14 ok=54 fail=0. TRUSTED-LINES prints core=1176/2000 vm=0/800 OK.
+Restoring the original staged inference implementation makes seven of the new
+fixtures fail; restoring the fixes makes all 54 pass. The original Stage C
+measurement rows above are historical results, not measurements of this fix.

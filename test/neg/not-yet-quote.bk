@@ -1,0 +1,2 @@
+(* a quotation, declared and refused at M0 *)
+let a = .< 1 + 2 >.

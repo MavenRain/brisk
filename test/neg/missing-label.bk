@@ -1,0 +1,3 @@
+(* selection of a label the closed record does not hold *)
+let r = { a = 1 }
+let b = r.b

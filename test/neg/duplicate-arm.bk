@@ -1,0 +1,2 @@
+(* two arms name the same occurrence of the same label *)
+let f v = match v with | < l ^ 0 a > -> a | < l ^ 0 b > -> b

@@ -1,0 +1,2 @@
+(* one free name, bound at no let and at no lambda *)
+let a = missing

@@ -1,0 +1,2 @@
+(* an effect declaration, declared and refused at M0 *)
+effect Empty { }

@@ -1,0 +1,2 @@
+(* a row that ends in a row variable, with no catch-all arm *)
+let f v = match v with | < a p > -> p

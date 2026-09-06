@@ -1,0 +1,1 @@
+let f v = match (v : < a : { x : int } >) with | < a { x = n } > -> n

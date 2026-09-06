@@ -77,6 +77,17 @@ let two_words (line : string) : string =
   | [] -> line
   | [ _ ] -> line
 
+(* A golden that holds more than two words holds the whole error line,
+   and the negative comparison then reads the whole line (D-C-14, D-C-16).
+   A golden of the two-word head keeps the Stage B comparison, so no
+   older golden moves. *)
+let over_two_words (line : string) : bool =
+  List.length
+    (List.filter
+       (fun (w : string) -> not (String.equal w ""))
+       (String.split_on_char ' ' line))
+  > 2
+
 let lines_of (text : string) : string list =
   List.filter
     (fun (l : string) -> not (String.equal (String.trim l) ""))
@@ -209,7 +220,8 @@ let check_neg (path : string) (src : string) : report =
     ~some:(fun (g : string) ->
       let want = String.trim g in
       let against (e : Error.t) : report =
-        let have = two_words (Error.to_line e) in
+        let line = Error.to_line e in
+        let have = if over_two_words want then line else two_words line in
         if String.equal want have then no_fail 0 0
         else
           one_fail

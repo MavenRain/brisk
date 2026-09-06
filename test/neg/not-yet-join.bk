@@ -1,0 +1,2 @@
+(* a join, declared and refused at M0 *)
+let a = join f

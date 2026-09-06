@@ -1,0 +1,2 @@
+(* the at-most-once arrow, declared and refused at M0 *)
+let f x = (x : int -1> int)
