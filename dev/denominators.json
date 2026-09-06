@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-06",
+  "tot_pin": "6d0d48d",
+  "tot_corpus": {
+    "files": [
+      "budget.ml",
+      "budget.mli",
+      "check.ml",
+      "erase.ml",
+      "error.ml",
+      "eterm.ml",
+      "eval.ml",
+      "global.ml",
+      "interp.ml",
+      "json_escape.ml",
+      "level.ml",
+      "level.mli",
+      "literal.ml",
+      "pp.ml",
+      "prim.ml",
+      "quantity.ml",
+      "term.ml",
+      "totality.ml",
+      "value.ml"
+    ],
+    "lines": 4976,
+    "sha256": "71878111d71951341a0f16a3fd971f1d108c3f80cbcb4102ba9d02c76a730543"
+  },
+  "raw_ocamlopt_ms_per_kloc": 174.4,
+  "kanon_ocamlopt_ms_per_kloc": 1641.599,
+  "kanon_ocamlopt_ms_per_kloc_parallel": 712.803,
+  "brisk_corpus": {
+    "files": [
+      "examples/m0-spine.bk"
+    ],
+    "lines": 2,
+    "sha256": "29239024337eae609ded575a3f49f1450260af6a314cd2eb34fac0830a136b3b"
+  },
+  "ocaml_version": "5.2.1",
+  "dune_version": "3.24.2",
+  "method": "The denominator corpus is the tot pin worktree /Users/oobi/Documents/affine-lang-tot-pin at 6d0d48d with porcelain 0, read and never built in place.  dev/denominators.sh re-measures the raw figure inside every gate run, by the method D-M0-7 fixes (M0-PLAN.md:29 and :342).  It reads dev/denominators.json through /opt/homebrew/bin/python3 -P with the json module.  It lists the corpus with /bin/ls -1 PIN/lib/*.ml PIN/lib/*.mli piped to LC_ALL=C sort, takes the bare file names, counts them, totals them with wc -l, and hashes them with cat of that sorted list piped to shasum -a 256.  It holds the count against tot_corpus.files, the total against tot_corpus.lines and the digest against tot_corpus.sha256, and it prints DENOM-ERROR with both values and exits 3 before any copy on a mismatch.  It then copies the files with mkdir -p and cp to $TMPDIR/brisk-denom-$$, with /tmp as the fall-back when TMPDIR is unset, and orders the copy with zsh dev/pin-dune.sh -C COPYDIR ocamldep -sort FILES.  The compile command is zsh dev/pin-dune.sh -C COPYDIR ocamlfind ocamlopt -c -package str FILES in that order, one process per run, with the .cmi and .cmx files overwritten each run;  Str ships with OCaml 5.2.1 and is not a third-party package.  One untimed pass warms the .cmi files, and zsh dev/bench.sh raw_ocamlopt COMMAND with RUNS 5 times five runs after its own warm-up, with time.perf_counter_ns around subprocess.run of /bin/zsh -f -c COMMAND under /opt/homebrew/bin/python3 -P and stdin, stdout and stderr on /dev/null.  A non-zero exit prints DENOM-ERROR and exits 4.  rm -rf removes the copy, and the script prints DENOM raw_ms_per_kloc=.. median_ms=.. lines=.. files=.. sha=.. and NUMSHA sha=.. lines=.. files=1, where raw_ms_per_kloc is median_ms divided by lines over 1,000 to three decimals.  The runner dev/pin-dune.sh puts the switch /Users/oobi/.opam/zxcaml-p1/bin first on PATH, clears the user chpwd hooks, cds into the named directory and execs the command, and it never cds into the pin (M0-PLAN.md:33).  raw_ocamlopt_ms_per_kloc 174.4 is the 2026-09-05 probe 1 reference of design-verdict.md:52, kept as the recorded reference and re-measured every run;  it is never the FLOOR denominator.  kanon_ocamlopt_ms_per_kloc 1641.599 is frozen and serial and is the RATIO denominator, and kanon_ocamlopt_ms_per_kloc_parallel 712.803 is informational.  The numerator corpus does not exist yet, because brisk does not exist yet (M0-PLAN.md:35).  Stage 0 writes the brisk_corpus keys with the sha256, the wc -l line count and the file count 1 of the placeholder examples/m0-spine.bk, and Stage E replaces them with the keys of the 1 kloc spine and re-freezes the sidecar.  That is the one denominators.json edit M0 allows, D-M0-6 rules it legal, and dev/M0-BUILD-LOG.md records it.  dev/DENOMINATORS.sha256 holds one row, shasum -a 256 denominators.json written from inside dev/, and the check is zsh -c \"cd dev && shasum -a 256 -c DENOMINATORS.sha256\"."
+}
