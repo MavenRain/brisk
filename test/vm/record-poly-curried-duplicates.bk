@@ -1,0 +1,2 @@
+let sum r s = r.n + r.m + s.n + s.m
+let main = print_int (sum { m = 1, n = 2, n = 90 } { n = 3, pad = 50, m = 4, n = 80 })

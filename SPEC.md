@@ -450,11 +450,10 @@ steps run in one process.  The Stage E driver is not present yet.
 Stage D remains in progress.  In particular, the current lowering can
 misalign a closed record layout with its inferred field offsets, and can
 assign a variant tag without the row context of a consuming function.
-Readers over several curried parameters, readers captured by closures,
-readers bound by a recursive group, and restriction of an open record
-row also have known lowering failures.  A reader outside the positions
-of section 10.2 is refused with `Not_yet M1` instead of reaching the
-machine stripped of its offsets.  The offset and tag rules below state
+Reader offsets now survive curried parameters, partial applications,
+captures and recursive groups.  Restriction of an open record row is
+refused with `Not_yet M1`; general higher-order reader transport and row
+joins still need layout support.  The offset and tag rules below state
 the required semantics.  The VM goldens and instruction census do not
 establish those rules for every checked program.
 
@@ -517,19 +516,31 @@ field and rebuilds the array.  Restriction removes the selected outermost
 occurrence and rebuilds the remaining fields in order.
 
 A closed selection emits `GetField` with a static offset.  A
-row-polymorphic reader receives an extra integer argument for each
-selected field occurrence, supplied by a call site with a known layout.
-Its selection emits `GetFieldDyn`.  An offset that the caller cannot
-resolve is refused with `Not_yet M1`.
+row-polymorphic reader receives extra integer offsets immediately before
+each source record parameter.  A signature records these offsets at each
+curried parameter position, including empty positions before later reader
+parameters.  Partial applications consume signature entries one source
+argument at a time, and aliases retain the remainder.  Its selection emits
+`GetFieldDyn`.  Closed call sites supply constants.  Open record binders
+and their aliases can forward their known offset slots; an open expression
+without such a binder is refused with `Not_yet M1`.
 
-A reader keeps its hidden offsets in three positions only:  a `let`
-binding of the reader, an argument whose parameter type is an arrow over
-a closed record, and a top-level `DLet`.  In every other position the
-value would reach the machine without its offsets, so lowering refuses
-it with `Not_yet M1` at compile time.  The refused positions are a name
-with offsets read as a plain variable, an argument of a type-variable
-parameter, a record field value and a branch of an `if`.  A refusal is
-honest;  a stripped reader would read the wrong slot at run time.
+An offset belongs to a particular record binder and label.  Capturing a
+record also captures its offset slots, so a nested reader of the same
+label cannot use another record's offset.  Every binder masks older
+metadata with the same name.  A recursive member uses the first hidden
+offset as its implicit `IFix` argument when needed; remaining offset and
+source parameters use the existing nested-lambda joining convention.
+Neither the IR shape nor the instruction set changes.
+
+Closed higher-order parameter types receive a curried adapter closure
+that supplies each reader parameter's offsets.  Unconstrained parameters
+still pass values through without an adapter.  This supports an ignored
+reader value but does not establish general higher-order reader transport.
+A named reader used as a plain value in a record or conditional branch
+is still refused.  Open-row restriction is also refused before emission,
+because `ResRec` requires a static offset and the full residual layout is
+not available.  Closed restriction retains its existing behavior.
 
 A variant block holds a tag and payload array.  The tag is the absolute
 position of the label occurrence in its closed variant row, including
@@ -634,6 +645,10 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-29 programs, no failures and consistent counts.  The suite holds 35
-programs with a `main`, so 29 is a floor and not the count.  It also requires
+48 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
+The same gate runs at least two `test/lower-neg` programs through
+`test/refusals.exe`, and the tree ships six.  Each must parse and type
+check, then fail lowering
+with exactly its hand-written `.err` diagnostic.  Successful lowering,
+an earlier rejection, a missing golden or an empty corpus fails the gate.

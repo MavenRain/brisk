@@ -1,0 +1,2 @@
+let rec add r count = if count == 0 then r.n else add r (count - 1)
+let main = print_int (add { pad = 9, n = 7 } 1000)

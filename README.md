@@ -5,10 +5,10 @@ an affine discipline over resources, and one canonical printed form.  M0
 plans the front end, the type checker, a stack VM and a driver, with no
 dependency outside the OCaml standard library.  Through Stage D, the
 front end, checker and VM run through the test executables.  Stage D is
-in progress: record layouts, some row-polymorphic functions and contextual
-variant tags still have known lowering failures (SPEC.md section 10).
-A row-polymorphic reader outside the three positions of SPEC.md section
-10.2 is refused at compile time, not lowered.
+in progress: record layouts and contextual variant tags still have known
+lowering failures (SPEC.md section 10).  Row-reader offsets now survive
+currying, partial application, captures and recursive groups.  Open-row
+restriction and open calls without identifiable offset binders are refused.
 The driver arrives at Stage E.  The grammar,
 the tree and
 the printer are a rewrite, not a port.  SPEC.md holds the surface syntax,
@@ -26,10 +26,12 @@ brisk/
   surface/  brisk_surface: lexer.ml parser.ml ast.ml print.ml infer.ml lower.ml
   vm/  brisk_vm: instr.ml value.ml assemble.ml exec.ml prim.ml census.ml
   test/  main.exe (check suite), vm.exe (run suite), parse.exe (round trip)
+         refusals.exe (checked programs rejected during lowering)
   dev/  bench.sh denominators.sh denominators.json DENOMINATORS.sha256 gates.sh
         pin-dune.sh house.sh trusted-lines.sh PROVENANCE.md M0-BUILD-LOG.md
         MUTATION-LOG.md
   test/vm/  machine programs and hand-written stdout goldens
+  test/lower-neg/  lowering refusals and exact diagnostic goldens
   examples/m0-spine.bk  the placeholder numerator corpus until Stage E
 ```
 
@@ -56,9 +58,10 @@ HOUSE holds the house rules of the plan section 11 over lib, surface and
 vm, plus test.  PARSE holds parse, print, parse and print equal on its 45
 fixtures.  SUITE-CHECK requires at least 18 positive fixtures and 36
 negative twins.  SUITE-VM checks the stdout goldens of every program with
-`main` in `test/vm` and `test/pos`, with a floor of 29 programs.  The
-suite holds 35 such programs, so the floor is a minimum and not the
-count.  SUITE-VM also
+`main` in `test/vm` and `test/pos`, with a floor of 48 programs.  It
+requires at least two lowering refusals to parse and check successfully
+before matching their exact diagnostic goldens;  the tree ships six.
+SUITE-VM also
 requires all 22 instructions to be emitted and executed, and the
 100,000-call tail recursion fixture to use at most 64 stack slots.
 TRUSTED-LINES requires all counted files to exist and holds the six core

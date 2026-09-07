@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 29 programs with their goldens, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots.  The suite holds 35 programs, so 29 is a floor and not the count.  It reads both `test/vm` and `test/pos`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 48 programs with their goldens, two exact lowering refusals after successful parsing and typing, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -128,3 +128,52 @@ suite has no promotion command.
 | `test/vm/variant.out` | none | NEW | Exact stdout bytes for `variant.bk`. |
 | `test/vm/variant-payload.bk` | none | NEW | The first variant occurrence and its string payload. |
 | `test/vm/variant-payload.out` | none | NEW | Exact stdout bytes for `variant-payload.bk`. |
+
+## Reader continuation fixtures
+
+All sources below are new brisk fixtures, with hand-written goldens.
+`surface/lower.ml` retains its existing provenance and trusted-core path;
+the reader changes do not copy code from another project.
+
+| File | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/refusals.ml` | none | NEW | Requires checked programs to fail lowering with exact diagnostics. |
+| `test/lower-neg/open-row-restriction.bk` | none | NEW | Refuses restriction of an open record. |
+| `test/lower-neg/open-row-restriction.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/lower-neg/open-row-join.bk` | none | NEW | Refuses forwarding a join of distinct record origins. |
+| `test/lower-neg/open-row-join.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/lower-neg/fix-member-signature.bk` | none | NEW | Refuses a `let rec` member whose standalone re-inference does not agree with its group signature (review J2). |
+| `test/lower-neg/fix-member-signature.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/lower-neg/annotated-reader.bk` | none | NEW | Refuses an annotation that hides an open reader row behind a closed row (review J3). |
+| `test/lower-neg/annotated-reader.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/lower-neg/reader-through-unconstrained.bk` | none | NEW | Refuses a reader that goes through an unconstrained parameter and escapes into the result (review J4). |
+| `test/lower-neg/reader-through-unconstrained.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/lower-neg/open-higher-order-domain.bk` | none | NEW | Refuses an unknown higher-order domain with the milestone refusal and not an internal message (review J6). |
+| `test/lower-neg/open-higher-order-domain.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/pos/record-restrict.bk` | none | SHIPPED | Holds `let drop r = { r - n }`, the declaration of `test/lower-neg/open-row-restriction.bk`. The declaration type checks, so SUITE-CHECK reads it. The file declares no `main`, so SUITE-VM skips it. Its lowering answers `Not_yet M1` (review J7). |
+| `test/vm/record-poly-curried.bk` | none | NEW | Offsets at two curried record parameters. |
+| `test/vm/record-poly-curried.out` | none | NEW | Hand-derived stdout `15`. |
+| `test/vm/record-poly-partial.bk` | none | NEW | Ordinary parameters and aliases of partial readers. |
+| `test/vm/record-poly-partial.out` | none | NEW | Hand-derived stdout `1516`. |
+| `test/vm/record-poly-capture.bk` | none | NEW | Closure captures a record offset. |
+| `test/vm/record-poly-capture.out` | none | NEW | Hand-derived stdout `7`. |
+| `test/vm/record-poly-capture-label.bk` | none | NEW | Nested readers selecting the same label. |
+| `test/vm/record-poly-capture-label.out` | none | NEW | Hand-derived stdout `15`. |
+| `test/vm/record-poly-capture-alias.bk` | none | NEW | Captured alias survives binder shadowing. |
+| `test/vm/record-poly-capture-alias.out` | none | NEW | Hand-derived stdout `15`. |
+| `test/vm/record-poly-recursive.bk` | none | NEW | Reader in a recursive group. |
+| `test/vm/record-poly-recursive.out` | none | NEW | Hand-derived stdout `7`. |
+| `test/vm/record-poly-recursive-forward.bk` | none | NEW | Recursive calls forward open-record offsets. |
+| `test/vm/record-poly-recursive-forward.out` | none | NEW | Hand-derived stdout `7`. |
+| `test/vm/record-poly-mutual.bk` | none | NEW | Mutual readers with a later record parameter. |
+| `test/vm/record-poly-mutual.out` | none | NEW | Hand-derived stdout `79`. |
+| `test/vm/record-poly-curried-argument.bk` | none | NEW | Higher-order adapter with two reader arguments. |
+| `test/vm/record-poly-curried-argument.out` | none | NEW | Hand-derived stdout `15`. |
+| `test/vm/record-poly-curried-duplicates.bk` | none | NEW | Multiple offsets preserve scoped duplicate order. |
+| `test/vm/record-poly-curried-duplicates.out` | none | NEW | Hand-derived stdout `10`. |
+| `test/vm/record-poly-recursive-capture.bk` | none | NEW | Recursive closure captures an outer reader record. |
+| `test/vm/record-poly-recursive-capture.out` | none | NEW | Hand-derived stdout `7`. |
+| `test/vm/record-poly-partial-capture.bk` | none | NEW | Closure captures a partially applied reader. |
+| `test/vm/record-poly-partial-capture.out` | none | NEW | Hand-derived stdout `15`. |
+| `test/vm/record-poly-preserved-join.bk` | none | NEW | Conditional and match origins preserve reader behavior. |
+| `test/vm/record-poly-preserved-join.out` | none | NEW | Hand-derived stdout `777`. |

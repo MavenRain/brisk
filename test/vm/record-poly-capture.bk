@@ -1,0 +1,2 @@
+let get r = let f = fun x -> r.n + x in f 1
+let main = print_int (get { z = 9, n = 6 })

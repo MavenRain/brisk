@@ -227,18 +227,31 @@ leg_suite_check () {
 }
 
 # SUITE-VM (M0-PLAN.md:250, D-D-35).  Every positive file with main
-# must match its stdout golden.  The floor holds the twenty-nine programs
-# already present at Stage D.  The same list must emit and execute all
-# twenty-two instructions, and tailrec must use at most 64 stack slots.
+# must match its stdout golden.  The floor protects the regression corpus.
+# Lowering refusals must parse and check before matching their diagnostics.
+# The run list must emit and execute all twenty-two instructions, and
+# tailrec must use at most 64 stack slots.
 leg_suite_vm () {
   local out code line n r s k m census stack peak
-  local main_floor=29
+  local main_floor=48
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
   if [[ $code -ne 0 || -n $out ]]; then
     print -r -- "build exit=$code"
     print -r -- "$out"
     print -r -- "FAIL SUITE-VM"
+    return 1
+  fi
+  local refused=($ROOT/test/lower-neg/*.bk(N))
+  if [[ ${#refused} -lt 2 ]]; then
+    print -r -- "FAIL SUITE-VM missing lowering refusals"
+    return 1
+  fi
+  out=$($ROOT/_build/default/test/refusals.exe $refused 2>&1)
+  code=$?
+  print -r -- "$out"
+  if [[ $code -ne 0 || $out != "REFUSALS files=${#refused} ok=${#refused} fail=0" ]]; then
+    print -r -- "FAIL SUITE-VM lowering refusals"
     return 1
   fi
   local files=(

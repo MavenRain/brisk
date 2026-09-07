@@ -1,6 +1,6 @@
 ; test/dune:  parse.exe of M0-PLAN.md:248, main.exe of M0-PLAN.md:249 and
-; vm.exe of M0-PLAN.md:250.
-; One stanza declares all three, because they read the same libraries
+; vm.exe of M0-PLAN.md:250 and refusals.exe checking lowering refusals.
+; One stanza declares these drivers, because they read the same libraries
 ; (D-B-20, D-D-34).
 ; The libraries brisk_core, brisk_surface and brisk_vm are unwrapped, so
 ; Error, Ast, Parser, Print, Infer, Lower, Instr, Assemble and Exec name
@@ -8,6 +8,6 @@
 ; -warn-error +a is the "warnings as errors" of M0-PLAN.md:245 (D-A-10).
 
 (executables
- (names parse main vm)
+ (names parse main vm refusals)
  (libraries brisk_core brisk_surface brisk_vm)
  (flags (:standard -warn-error +a)))

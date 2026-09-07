@@ -881,3 +881,121 @@ block above records that earlier run and is left as it stood.  This
 run also adds the three F3 regression fixtures, so `VM files`, `main`,
 `ok` and the `SUITE-VM programs`/`goldens` figures move from 50/32/32
 and 32/32 to 53/35/35 and 35/35 against the block above.
+
+### Reader calling-convention continuation, 2026-09-06
+
+Starting commit: `674f89c`. The main repository was clean. Work ran in
+`/Users/oobi/Documents/gpt8/brisk-next`, a fresh checkout of that commit;
+the older `gpt8/brisk` continuation was preserved. The validated delta is
+prepared for staging in `/Users/oobi/Documents/brisk`. No commit is made.
+
+Three previously listed gaps now have executable regressions: later
+curried reader parameters, captured reader offsets and recursive readers.
+Open-row restriction now refuses lowering instead of reading the wrong
+field. Record and variant layout conversion remains unfinished, so this
+entry does not close Stage D or open Stage E.
+
+| Id | Change | Reason |
+| --- | --- | --- |
+| D-D-C6 | Reader signatures retain offset lists at each source parameter position; partial application consumes one entry at a time. | Later record arguments and aliases must use the same calling convention as the compiled closure. |
+| D-D-C7 | Offset names identify a binder and label, and captures include those slots. Aliases, conditionals preserving one origin and catch-all match names retain the origin. | A nested reader must not reuse another record's offset, and safe origin-preserving expressions must remain accepted. |
+| D-D-C8 | The existing implicit first argument of an `IFix` member may be an offset. Remaining parameters use the existing lambda join. The adapter claim holds only for a reader argument that the assembler emits at the frame base. | Recursive readers need no new IR arm, instruction or VM change. The `Ir.ILet` arm of `vm/assemble.ml:109-114` reads a let-bound slot too deep under a pending push, so an adapter at a later argument position fails. |
+| D-D-C9 | Open restriction and open calls without a recoverable offset origin answer `Not_yet M1`. | Static offsets cannot safely remove an unknown field or describe a join of different record origins. |
+| D-D-C10 | SUITE-VM requires at least 48 executable programs and two lowering refusals. The new refusal driver checks parsing, typing and the exact lowering diagnostic separately. | Deleting new coverage or rejecting a fixture in the wrong phase must fail the gate. |
+
+Thirteen new VM fixture pairs have hand-derived output goldens. All
+thirteen fail on the committed baseline executable and pass with this
+continuation. Twelve independent probes initially passed, against two
+passes on the baseline. Diff review then found two regressions: selection
+through an identity conditional and a match-bound record alias. Both were
+repaired and included in `record-poly-preserved-join.bk`. The final binary
+passes all fourteen independent checks.
+
+The complete pinned gate battery passed in the fresh checkout:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=45
+CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0
+PASS SUITE-CHECK positives=18 twins=36
+REFUSALS files=2 ok=2 fail=0
+VM files=66 main=48 skipped=18 ok=48 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=48 goldens=48
+TRUSTED-LINES core=1990/2000 vm=799/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=387.455
+GATES-OK
+```
+
+Tailrec still makes 100,000 calls with a maximum of seven stack slots.
+The core stays at the ruled Stage D cap of 1990 lines, including the
+700-line lowering module. The VM remains at 799 lines. Repeated helper
+arms and comments were simplified; no trusted logic moved to another
+file, and no counted path, line limit, instruction or primitive changed.
+The numerator placeholder and denominator manifests are byte-identical
+to the starting commit.
+
+| Leg | elapsed_ms | Exit |
+| --- | ---: | ---: |
+| BUILD | 2288.307 | 0 |
+| HOUSE | 559.287 | 0 |
+| PARSE | 787.732 | 0 |
+| SUITE-CHECK | 508.889 | 0 |
+| SUITE-VM | 2284.176 | 0 |
+| TRUSTED-LINES | 191.580 | 0 |
+| DENOMINATORS | 20899.090 | 0 |
+
+Seven refusal-driver controls passed, including rejection in the wrong
+phase, successful lowering, a wrong or missing golden and an empty input
+list. The machine mutation evidence and its limits are recorded in
+`dev/MUTATION-LOG.md`. Full logs and independent probes are retained in
+`/Users/oobi/Documents/gpt8/brisk-evidence` outside the staged source tree.
+
+### Review round, 2026-09-06
+
+One review round judged seven items over the reader continuation. Five
+items changed code in `surface/lower.ml`. Two items changed prose only.
+No IR arm, no instruction and no file of the machine changed.
+
+| Id | What changed |
+| --- | --- |
+| J1 | `dev/STAGE-D-STATUS.md` gains the subsection `Let bound values under pending pushes`, which records the two reproductions of the assembler defect at `vm/assemble.ml:109-114` and states that the repair needs a VM change; the D-D-C8 entry now limits the adapter claim to a reader argument at the frame base. |
+| J2 | `lower_member` receives the group name, compares the group signature with the signature of its own standalone re-inference, and answers `Not_yet M1` when the two disagree; `test/lower-neg/fix-member-signature.bk` pins the refusal. |
+| J3 | `classify` gains the head `HAnn`, and `poly_of` answers the signature from inside an annotation and refuses a form that hides offsets from its callers; `test/lower-neg/annotated-reader.bk` pins the refusal. |
+| J4 | `lower_args` answers `Not_yet M1` when a reader goes to an unconstrained parameter that occurs in the result, through the existing occurs check `Unify.occurs_ty`; `test/lower-neg/reader-through-unconstrained.bk` pins the refusal. |
+| J5 | `dev/STAGE-D-STATUS.md` extends `Contextual variant tags` with the site `tag_of`, the reason that a blanket refusal is not available, and a second reproduction that expects `1` and prints `101`. |
+| J6 | `adapt_reader` answers `Not_yet M1` for an unknown higher-order domain instead of an internal parse sentence; `test/lower-neg/open-higher-order-domain.bk` pins the refusal. |
+| J7 | `dev/PROVENANCE.md` and `dev/STAGE-D-STATUS.md` disclose that `test/pos/record-restrict.bk` holds the declaration that the new open-restriction refusal rejects. |
+
+The five code items add counted lines, so real logic was simplified in
+the same file. `occ_at` replaces four copies of the occurrence lookup,
+`map_result` replaces three copies of the result traversal and removes
+`lower_all`, `arrow_parts` serves both `arrow_arg` and `lower_args`, and
+the four arms of `spine` become two. The core count moves from 1990 to
+1994 of 2000. The vm count stays at 799 of 800. No logic moved to
+another file.
+
+The complete pinned gate battery passed after the round:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=45
+CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0
+PASS SUITE-CHECK positives=18 twins=36
+REFUSALS files=6 ok=6 fail=0
+VM files=66 main=48 skipped=18 ok=48 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=48 goldens=48
+TRUSTED-LINES core=1994/2000 vm=799/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=275.640
+GATES-OK
+```
+
+Every new refusal fixture failed against the staged binary before its
+fix and passes after it. The four fixtures ran through
+`_build/default/test/refusals.exe` one at a time, and each printed
+`REFUSALS files=1 ok=0 fail=1` before the fix.

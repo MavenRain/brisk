@@ -1,0 +1,3 @@
+let drop r = { r - n }
+let s = drop { pad = 1, n = 2 }
+let main = print_int s.pad

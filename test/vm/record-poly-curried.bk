@@ -1,0 +1,2 @@
+let sum r s = r.n + s.n
+let main = print_int (sum { n = 7, z = 1 } { z = 2, n = 8 })

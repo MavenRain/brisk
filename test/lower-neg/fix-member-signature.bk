@@ -1,0 +1,3 @@
+let rec f x = g { pad = 9, n = 7 }
+and g s = s.n
+let main = print_int (f 0)

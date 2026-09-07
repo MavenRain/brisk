@@ -1,0 +1,7 @@
+let get r = (if true then r else r).n
+let read r = r.n
+let apply r = let alias = r in read (if false then r else alias)
+let matched r = match r with | x -> x.n
+let a = print_int (get { pad = 9, n = 7 })
+let b = print_int (apply { pad = 8, n = 7 })
+let main = print_int (matched { pad = 6, n = 7 })

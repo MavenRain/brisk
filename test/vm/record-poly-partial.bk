@@ -1,0 +1,7 @@
+let sum x r s = x + r.n + s.n
+let first = sum 1
+let alias = first
+let second = alias { n = 6, pad = 90 }
+let again = second
+let a = print_int (again { pad = 80, n = 8 })
+let main = print_int (second { n = 9, pad = 70 })

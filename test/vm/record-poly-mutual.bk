@@ -1,0 +1,4 @@
+let rec even count r = if count == 0 then r.n else odd (count - 1) r
+and odd count r = if count == 0 then r.n + 1 else even (count - 1) r
+let a = print_int (even 100 { pad = 90, n = 7 })
+let main = print_int (odd 100 { n = 8, pad = 80 })

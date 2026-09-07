@@ -1,0 +1,2 @@
+let get r = let rec walk n = if n == 0 then r.n else walk (n - 1) in walk 100
+let main = print_int (get { pad = 9, n = 7 })

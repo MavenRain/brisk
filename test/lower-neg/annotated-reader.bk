@@ -1,0 +1,2 @@
+let f = ((fun r -> r.n) : { n : int, pad : int } -> int)
+let main = print_int (f { pad = 9, n = 7 })

@@ -498,3 +498,45 @@ also passed, as recorded in `dev/M0-BUILD-LOG.md`.
 
 These controls do not replace SD-M1, SD-M2 or SD-M3.  Those full machine
 mutations remain part of the unfinished Stage D completion work.
+
+### Reader continuation controls, 2026-09-06
+
+The executable from `674f89c` runs all thirteen new VM fixtures with
+`VM files=13 main=13 skipped=0 ok=0 fail=13`. The continuation passes all
+thirteen in the complete 48-program battery. The two captured same-label
+cases differ from their goldens on the baseline; the other cases produce
+lowering refusals or machine argument-kind errors. Twelve independent
+probes pass 2/12 on the baseline and 12/12 after the reader repair. The
+final binary also passes the two conditional/match origin regressions
+found during diff review, giving fourteen independent passes.
+
+The new refusal driver was exercised with these seven isolated controls:
+
+| Control | Expected result | Observed |
+| --- | --- | --- |
+| Checked open-row restriction with exact golden | Exit 0, one refusal | PASS |
+| Ordinary successfully lowered program | Exit 1, lowering accepted | PASS |
+| Invalid syntax | Exit 1, parse failure | PASS |
+| Unbound name | Exit 1, checker failure | PASS |
+| Different diagnostic golden | Exit 1, lowering diagnostic mismatch | PASS |
+| Missing diagnostic golden | Exit 1, unreadable fixture | PASS |
+| No input paths | Exit 1, zero files | PASS |
+
+### Machine mutation witnesses, 2026-09-06
+
+These mutations ran in an isolated snapshot of `674f89c`, whose unmodified
+SUITE-VM passes all 35 programs and the 22/22 census. Each mutated assembler
+builds without diagnostics. The continuation changes no VM file.
+
+| Mutation | Witness and result |
+| --- | --- |
+| SD-M1: emit `Apply n` instead of `AppTerm n` | The complete SUITE-VM exits 1. `tailrec.bk` reports `the stack ceiling of 65536 slots is reached`; summary is `VM files=53 main=35 skipped=18 ok=30 fail=5`. |
+| SD-M2: emit static field zero as field one | The focused `test/vm/record.bk` run exits 1 with `the stdout differs from the golden`, one failure out of one program. |
+| SD-M3: omit switch entries with tag one | The focused `test/vm/variant.bk` run exits 1 with `the switch table has no entry for tag 1`, one failure out of one program. |
+
+The first full-suite SD-M2 attempt exceeded its 60-second outer timeout;
+that timeout is not counted as a golden mismatch witness. The focused
+record run above supplies the concrete mismatch. SD-M2 and SD-M3 were
+not certified against the full final suite by this continuation. The
+isolated assembler source was restored afterwards. These witnesses do
+not close the remaining layout work or establish a Stage D exit stamp.

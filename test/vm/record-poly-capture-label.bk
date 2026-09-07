@@ -1,0 +1,2 @@
+let sum r = let get = fun s -> r.n + s.n in get { n = 8, pad = 50 }
+let main = print_int (sum { pad = 90, n = 7 })

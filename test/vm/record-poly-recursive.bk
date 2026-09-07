@@ -1,0 +1,2 @@
+let rec get r = r.n
+let main = print_int (get { pad = 9, n = 7 })

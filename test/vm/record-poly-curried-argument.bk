@@ -1,0 +1,3 @@
+let sum r s = r.n + s.n
+let apply f = f { n = 7, pad = 90 } { pad = 80, n = 8 }
+let main = print_int (apply sum)

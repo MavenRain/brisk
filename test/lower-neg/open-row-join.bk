@@ -1,0 +1,3 @@
+let get r = r.n
+let apply r s = get (if true then r else s)
+let main = print_int (apply { pad = 9, n = 7 } { n = 8, pad = 10 })
