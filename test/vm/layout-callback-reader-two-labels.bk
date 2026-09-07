@@ -1,0 +1,4 @@
+let both r = r.n + r.m
+let feed f x = f x
+let invoke g = g ({ pad = 9, m = 3, n = 40 } : { pad : int, m : int, n : int })
+let main = print_int (feed invoke both)

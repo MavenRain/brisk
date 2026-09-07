@@ -1,0 +1,5 @@
+(* Result conversion preserves the order and count of effects in each branch. *)
+let mark n = let shown = print_int n in n
+let choose flag = ((if flag then let x = mark 1 in { b = mark 7, a = x } else match mark 2 with | 2 -> { a = 3, b = mark 8 } | other -> { b = 9, a = other }) : { a : int, b : int })
+let first = print_int ((choose true).b)
+let main = print_int ((choose false).b)

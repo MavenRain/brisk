@@ -1,0 +1,7 @@
+(* Variant match arms carry the result target to the recursive call. *)
+let step count = ((if count == 0 then < done 0 > else < more (count - 1) >) : < done : int, more : int >)
+let rec first count = match step count with | < done finished > -> { b = 7, a = 1 } | < more remaining > -> second remaining
+and second count = match step count with | < done finished > -> { a = 2, b = 8 } | < more remaining > -> first remaining
+let read r = (r : { a : int, b : int }).b
+let shown = print_int (read (first 100000))
+let main = print_int (read (first 100001))

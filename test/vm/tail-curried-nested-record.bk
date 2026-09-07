@@ -1,0 +1,6 @@
+(* Curried calls preserve outer and nested record layouts in constant stack. *)
+let rec first count seed = if count == 0 then { payload = { y = seed + 7, x = 1 }, a = seed } else second (count - 1) seed
+and second count seed = if count == 0 then { a = seed, payload = { x = 2, y = seed + 8 } } else first (count - 1) seed
+let read r = ((r : { a : int, payload : { x : int, y : int } }).payload).y
+let shown = print_int (read (first 100000 0))
+let main = print_int (read (first 100001 0))

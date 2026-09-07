@@ -538,6 +538,16 @@ Recursive members normalize results to their shared group signatures.
 Declaration environments advance in source order and retain fresh-type
 state, so later bindings cannot overwrite an earlier value's layout.
 
+Lowering passes the consumer's final result layout into conditional arms,
+literal and variant match arms, local binding bodies, recursive binding
+bodies and immediately nested curried lambdas.  Intermediate annotations
+remain checked, but their layout conversions can compose into the final
+target.  This avoids rebuilding a result after a recursive call whose
+declared result layout already agrees with the consumer.  Field expressions
+retain source evaluation order and run once.  A call between genuinely
+different result layouts still needs a conversion after it returns, and
+this change does not make that call use constant stack space.
+
 A closed selection emits `GetField` with a static offset.  A
 row-polymorphic reader receives extra integer offsets immediately before
 each source record parameter.  A signature records these offsets at each
@@ -633,8 +643,9 @@ The VM is a tail-recursive OCaml walk over the instruction array with
 one accumulator and an explicit value stack.  Tail position passes into
 lambda bodies, conditional arms, match arms and let bodies.  A call in
 tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
-recursion fixture makes 100,000 calls, and SUITE-VM requires its maximum
-stack use to stay at or below 64 slots.
+recursion fixture and ten named result-layout regressions make at least
+100,000 calls.  SUITE-VM requires each fixture and its golden to exist and
+each maximum stack use to stay at or below 64 slots.
 
 `type frame = EffFrame of int * int` is a separate declaration and does
 not add an instruction.  No M0 program emits it.  The assembler refuses
@@ -675,10 +686,10 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-63 programs, no failures and consistent counts.  It also requires
+114 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
-The same gate runs at least six `test/lower-neg` programs through
-`test/refusals.exe`, and the tree ships six.  Each must parse and type
+The same gate runs at least ten `test/lower-neg` programs through
+`test/refusals.exe`, and the tree ships ten.  Each must parse and type
 check, then fail lowering
 with exactly its hand-written `.err` diagnostic.  Successful lowering,
 an earlier rejection, a missing golden or an empty corpus fails the gate.

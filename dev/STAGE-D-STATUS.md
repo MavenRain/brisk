@@ -1,7 +1,8 @@
-# Stage D continuation, 2026-09-06
+# Stage D continuation, 2026-09-07
 
 Stage D remains in progress.  The reader continuation starts at `674f89c`,
-the stack-slot repair at `3259c4d`, and layout reconciliation at `e3b42be`.
+the stack-slot repair at `3259c4d`, layout reconciliation at `e3b42be`,
+and tail-call preservation at `42dd749`.
 The known closed-record and contextual-variant reproductions now pass.
 The Stage E driver and speed gates remain unimplemented.
 
@@ -49,6 +50,24 @@ call now determines the reader's domain and supplies its offsets.
 
 ## Reader and stack conventions
 
+Result layouts now pass into conditionals, matches, local and recursive
+binding bodies, annotations and immediately nested curried lambdas.
+Previously a whole-body conversion could undo a branch conversion after
+the recursive call, making the call consume another stack frame.  Ten
+new deep regressions cover records, variants, duplicate labels, nested
+payloads, curried readers and annotated lambdas, and both parities of
+mutual recursion.  An additional semantic fixture requires exact output
+from effectful field expressions.  Source evaluation order
+and necessary conversions remain intact.  Calls between different actual
+result conventions can still require work after the call and grow the stack.
+An annotation on a recursive member body keeps a conversion after the call.
+The program reaches the ceiling of 65536 slots at depth 100000, although
+the annotation names the layout that the consumer reads.
+A recursive group of three members whose base records hold three different field orders also keeps a conversion after the call.
+The stack grows about two slots for each call.
+Each member takes its own result layout.  The group does not settle one layout.
+The eleven named tail fixtures of `dev/gates.sh` hold neither shape, so the ceiling of 64 slots does not cover them.
+
 Each source parameter has its own leading record offsets.  Aliases and
 partial applications retain the remaining signature.  Captures carry
 the offsets of their record binders; shadowing masks older metadata.
@@ -64,10 +83,11 @@ fifteen `stack-*` regressions retain their semantic outputs.
 
 ## Explicit lowering refusals
 
-Nine fixtures parse and check successfully before answering the exact
+Ten fixtures parse and check successfully before answering the exact
 `Not_yet M1` diagnostic:
 
 - Open-row restriction, which requires the full residual layout.
+- A field read from an open-row restriction, which has no known offset.
 - An open call joining distinct record origins without one offset vector.
 - A recursive member whose standalone reader signature disagrees with
   its group's signature.
@@ -97,12 +117,14 @@ transport through records and returned conditional values remains
 outside the supported signature paths.  Destructuring and residual
 variant patterns also retain their existing lowering refusals.
 
-The gate requires 100 executable programs, nine exact lowering refusals,
+The gate requires 114 executable programs, ten exact lowering refusals,
 all 22 instructions emitted and executed, and at most 64 slots in the
-100,000-call tail recursion fixture.  The counted core is 2000/2000 lines
-and the machine is 795/800.  Historical introductory comments were
-shortened to keep the implementation within the existing bounds; no
-logic moved outside the counted files and no cap or path changed.
+100,000-call tail recursion fixture and each of the ten new named deep
+result-layout fixtures.  The counted core is 1998/2000 lines and the
+machine is 795/800.  Removing the redundant `lower_body` wrapper and
+reusing the existing option-to-result helper keep this change within the
+existing bounds; no logic moved outside the counted files and no cap or
+path changed.
 
 `Value.nth` retains its guarded constant-time array read.  Effect frames
 retain the M1 refusal.  Fixture file reads still assume readable regular

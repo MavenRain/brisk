@@ -1,0 +1,2 @@
+let grab a = ((let r = a in let r = r in { y = r.n, x = 1 }) : { x : int, y : int })
+let main = print_int ((grab { pad = 8, q = 7, n = 5 }).y)

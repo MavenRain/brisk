@@ -1129,3 +1129,133 @@ pattern forms retain lowering refusals.  Stage E remains unimplemented.
 The current scope and next work are in `dev/STAGE-D-STATUS.md`; baseline,
 mutation, gate and review artifacts are in
 `/Users/oobi/Documents/gpt8/brisk-layout-evidence`.
+
+### Tail result-layout continuation, 2026-09-07
+
+Starting commit: `42dd749`.  The main repository was clean.  Implementation
+and validation ran in `/Users/oobi/Documents/gpt8/brisk-tail`, a local
+clone.  The delta is staged in `/Users/oobi/Documents/brisk`; the user
+commits.
+
+The existing mutually recursive record fixture passed at depths two and
+three, but increasing them to 100000 and 100001 reached the machine's
+65536-slot ceiling.  Lowering first normalized a conditional's branches,
+then converted its entire result to the enclosing function's convention.
+This introduced work after a call even when the callee's actual result
+already had the final layout.  Curried bodies could similarly acquire an
+adapter that converted a result after the recursive call returned.
+
+| Id | Change | Reason |
+| --- | --- | --- |
+| D-D-C21 | Pass final result layouts into conditionals, matches, local and recursive binding bodies, and annotations. | A removable intermediate conversion must not turn a tail call into an ordinary call. |
+| D-D-C22 | Give immediately nested curried lambdas their enclosing target signature, including through annotations. | Adapting the whole inner function can retain a conversion after every recursive call. |
+| D-D-C23 | Let `lower_let` accept a body continuation and retain its existing environment, inference state, reader metadata and lexical frame setup. | Both ordinary and target-directed lowering need the same binding behavior. |
+| D-D-C24 | Add ten deep VM fixtures plus an exact evaluation-order fixture; require 111 programs and every named new pair. | Each deep fixture must independently remain below the existing 64-slot bound, and corpus additions must not hide a removed regression. |
+
+Both parities of the deep calls are checked at depths 100000 and 100001.
+The fixtures cover reordered records, variants, duplicate labels, nested
+payloads, literal and variant matches, local recursive bindings, curried
+record readers and annotated lambdas.  `layout-effects` requires exact
+bytes `177288`, checking source evaluation order and single evaluation
+through annotations, conditionals, a local binding and a literal match.
+
+Independent review found the missing propagation through a curried
+lambda's annotation, which is fixed and covered.  It also distinguished
+two source annotations that looked equal from their different inferred
+recursive signatures.  The corrected regression explicitly constrains
+both recursive call results, verifies equal inferred row order, and runs
+in constant stack space.  Calls between actually different result
+conventions still need conversions after returning; this change does not
+choose one convention across every recursive group.
+
+The core stays at 2000/2000 lines and the machine at 795/800.  Reusing the
+existing option-to-result helper and removing `lower_body` pay for the
+new paths.  No counted path, limit, IR arm, instruction, primitive or
+denominator pin changes.  Stage D remains in progress with the open
+layout and pattern limitations in `dev/STAGE-D-STATUS.md`; Stage E is
+still unimplemented.  Detailed evidence is retained under
+`/Users/oobi/Documents/gpt8/brisk-tail-evidence`.
+
+The final pinned gate battery passed:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=45
+CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0
+PASS SUITE-CHECK positives=18 twins=36
+REFUSALS files=9 ok=9 fail=0
+VM files=129 main=111 skipped=18 ok=111 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=111 goldens=111
+TRUSTED-LINES core=2000/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=697.984
+GATES-OK
+```
+
+| Leg | Tier | Elapsed ms | Exit |
+| --- | --- | ---: | ---: |
+| BUILD | MED | 273.704 | 0 |
+| HOUSE | FAST | 216.469 | 0 |
+| PARSE | MED | 216.300 | 0 |
+| SUITE-CHECK | SUITE | 214.815 | 0 |
+| SUITE-VM | SUITE | 31305.661 | 0 |
+| TRUSTED-LINES | FAST | 191.993 | 0 |
+| DENOMINATORS | SLOW | 27395.653 | 0 |
+
+The new deep fixtures peak at 8 to 15 slots; the original `tailrec`
+remains at seven.  An early development run also hit the unchanged
+TRUSTED-LINES and DENOMINATORS watchdogs during severe host load.  The
+final run passes both without changing their limits.  The recorded
+denominator remains a measurement of this run, not a Stage E speed claim.
+
+## Review round, 2026-09-07
+
+An independent review of the tail result-layout continuation accepted
+seven findings.  This round applies them.
+
+- F16: `lower_as` now passes its `inner` flag into the If, Let, LetRec,
+  Match and Ann arms, and `lower_match`, `lower_chain` and `lower_arm`
+  carry the flag to each arm body.  Before this change a curried reader
+  lambda one control arm below its consumer lost its reader offsets and
+  the machine reported that it wants a record.  The new fixture
+  `test/vm/curried-arm-reader.bk` holds the shape.
+- F5, folded into F16: the fallback arm of `lower_as` now calls
+  `lower_expr` alone.  The guarded `Lam` arm already takes every inner
+  lambda, so the head classification in the fallback was dead.  This
+  returns two counted lines to `surface/lower.ml`.
+- F17: `dev/STAGE-D-STATUS.md` now discloses two shapes that still keep
+  a conversion after the recursive call.  An annotated recursive member
+  body reaches the ceiling of 65536 slots.  A group of three members
+  with three different field orders grows about two slots for each call.
+  Each member takes its own result layout.  The eleven named tail
+  fixtures hold neither shape.  No code changed for this finding.
+- F11: `test/vm/layout-callback-reader-two-labels.bk` reads two labels
+  of a three field record through a callback, so a golden now observes
+  a closed call reader offset constant other than zero.
+- F10: `dev/PROVENANCE.md` gains a row for each of the eleven fixture
+  pairs of the slice and for each fixture of this round.  The SUITE-VM
+  row reads the current program floor, the named fixture check and the
+  stack ceiling.  The two `layout-*` family rows read 39.
+- F4: `test/lower-neg/layout-open-restriction-read.bk` reaches the open
+  row guard of `offset_of` first, and it is the one fixture that does.
+  The member binds a restriction of its open row and reads a different
+  label through its reader, so no other guard refuses the program
+  before that one.  A mutant that deletes the guard accepts the
+  program, and then this fixture fails alone.  The refusal count rises
+  from nine to ten.  The three signatures that the round one fix
+  lengthened are reflowed, and the line count of the file does not
+  change.
+- F1: `test/vm/let-shadow-reader.bk` pins that `lower_let` reads its
+  record metadata from the outer context, so a shadowing rebinding
+  keeps the offsets of the outer binder.
+- F9: the second member of `test/vm/tail-record-variant-match.bk` now
+  writes its base arm first, so the fixture fails at the parent commit
+  and witnesses the change.  `dev/MUTATION-LOG.md` records that
+  `layout-effects` is a control.
+
+`dev/gates.sh` raises `main_floor` from 111 to 114 and the lowering
+refusal floor from nine to ten.  The counted core falls to 1998 of 2000
+lines.  The machine is unchanged at 795 of 800.  No IR arm, instruction,
+primitive, path, cap or denominator pin changes.

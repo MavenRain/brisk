@@ -1,0 +1,6 @@
+(* Opposite variant branches keep their tags through deep mutual recursion. *)
+let rec first count = if count == 0 then < a 7 > else second (count - 1)
+and second count = if count == 0 then < b 8 > else first (count - 1)
+let read v = match (v : < a : int, b : int >) with | < a x > -> x + 100 | < b y > -> y
+let shown = print_int (read (first 100000))
+let main = print_int (read (first 100001))

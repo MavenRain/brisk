@@ -1,0 +1,6 @@
+(* Local lets and a recursive binder preserve duplicate record labels. *)
+let rec first count = let rec keep value = value in let remaining = keep count in if remaining == 0 then { b = 9, a = 7, a = 3 } else let rec next value = second value in next (remaining - 1)
+and second count = let rec keep value = value in let remaining = keep count in if remaining == 0 then { a = 8, b = 6, a = 4 } else let next = remaining - 1 in first next
+let read r = let aligned = (r : { a : int, b : int, a : int }) in let shown = print_int aligned.a in let rest = { aligned - a } in print_int rest.a
+let shown = read (first 100000)
+let main = read (first 100001)

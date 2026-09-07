@@ -1,0 +1,6 @@
+(* Curried calls retain reader dictionaries for differently ordered arguments. *)
+let rec first count r s = if count == 0 then { b = r.n + s.n, a = 1 } else second (count - 1) r s
+and second count r s = if count == 0 then { a = 2, b = r.n + s.n + 1 } else first (count - 1) r s
+let read r = (r : { a : int, b : int }).b
+let shown = print_int (read (first 100000 { pad = 1, n = 3 } { n = 4, pad = 2 }))
+let main = print_int (read (first 100001 { n = 3, pad = 1 } { pad = 2, n = 4 }))

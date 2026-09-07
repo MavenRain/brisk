@@ -230,10 +230,25 @@ leg_suite_check () {
 # must match its stdout golden.  The floor protects the regression corpus.
 # Lowering refusals must parse and check before matching their diagnostics.
 # The run list must emit and execute all twenty-two instructions, and
-# tailrec must use at most 64 stack slots.
+# tailrec and every named deep result-layout fixture must use at most 64
+# stack slots.  Their explicit names prevent unrelated additions from
+# masking a removed regression.
 leg_suite_vm () {
-  local out code line n r s k m census stack peak
-  local main_floor=100
+  local out code line n r s k m census stack peak fixture tail_fixture
+  local main_floor=114
+  local tail_files=(
+    $ROOT/test/vm/tailrec.bk
+    $ROOT/test/vm/tail-record-if.bk
+    $ROOT/test/vm/tail-record-let.bk
+    $ROOT/test/vm/tail-record-literal-match.bk
+    $ROOT/test/vm/tail-record-variant-match.bk
+    $ROOT/test/vm/tail-record-annotation.bk
+    $ROOT/test/vm/tail-variant-if.bk
+    $ROOT/test/vm/tail-variant-payload-match.bk
+    $ROOT/test/vm/tail-curried-nested-record.bk
+    $ROOT/test/vm/tail-curried-readers.bk
+    $ROOT/test/vm/tail-curried-annotation.bk
+  )
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
   if [[ $code -ne 0 || -n $out ]]; then
@@ -242,8 +257,14 @@ leg_suite_vm () {
     print -r -- "FAIL SUITE-VM"
     return 1
   fi
+  for fixture in $tail_files $ROOT/test/vm/layout-effects.bk; do
+    if [[ ! -f $fixture || ! -f ${fixture:r}.out ]]; then
+      print -r -- "FAIL SUITE-VM named fixture or golden missing: $fixture"
+      return 1
+    fi
+  done
   local refused=($ROOT/test/lower-neg/*.bk(N))
-  if [[ ${#refused} -lt 9 ]]; then
+  if [[ ${#refused} -lt 10 ]]; then
     print -r -- "FAIL SUITE-VM missing lowering refusals"
     return 1
   fi
@@ -294,16 +315,18 @@ leg_suite_vm () {
     print -r -- "FAIL SUITE-VM census"
     return 1
   fi
-  stack=$(print -r -- "$census" | rg -F -- "STACK $ROOT/test/vm/tailrec.bk max=")
-  peak=$(field "$stack" max)
-  if [[ $peak != <-> ]]; then
-    print -r -- "FAIL SUITE-VM tailrec stack missing"
-    return 1
-  fi
-  if [[ $peak -gt 64 ]]; then
-    print -r -- "FAIL SUITE-VM tailrec max=$peak ceiling=64"
-    return 1
-  fi
+  for tail_fixture in $tail_files; do
+    stack=$(print -r -- "$census" | rg -F -- "STACK $tail_fixture max=")
+    peak=$(field "$stack" max)
+    if [[ $peak != <-> ]]; then
+      print -r -- "FAIL SUITE-VM tail stack missing: $tail_fixture"
+      return 1
+    fi
+    if [[ $peak -gt 64 ]]; then
+      print -r -- "FAIL SUITE-VM tail max=$peak ceiling=64: $tail_fixture"
+      return 1
+    fi
+  done
   print -r -- "PASS SUITE-VM programs=$r goldens=$r"
   return 0
 }

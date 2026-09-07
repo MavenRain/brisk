@@ -624,3 +624,39 @@ work as described in `dev/STAGE-D-STATUS.md`.
 
 Commands, source hashes, exact diffs, exit codes and captured output are
 under `/Users/oobi/Documents/gpt8/brisk-layout-evidence/mutations`.
+
+### Tail result-layout regression and mutation controls, 2026-09-07
+
+The `42dd749` lowerer, compiled in an isolated copy, fails nine of the ten
+new deep fixtures.  Eight reach the 65536-slot stack ceiling; the curried
+reader case reports that the machine wants a record.  The variant-match
+fixture already passes that baseline.  The final executable passes all
+eleven new semantic goldens and all ten deep stack bounds, with peaks
+from eight to fifteen slots.  The complete final gate passes 111 programs,
+nine exact lowering refusals and the 22/22 instruction census.
+
+| Control | Witness | Observed result |
+| --- | --- | --- |
+| TL-M1: replace only target propagation through `Ast.LetRec` with whole-expression lowering followed by conversion | `tail-record-let` | Build succeeds within the original line caps; the fixture reaches the 65536-slot ceiling and exits one. |
+| TL-M2: remove the named `tail-record-let.bk` and add an unrelated valid compensation pair | The named-file gate check | The ordinary VM suite still reports 111 passing programs, but SUITE-VM exits one because the required named fixture is missing. |
+| TL-M3: restore the named source, remove its `.out`, and retain the compensation pair | The named-golden gate check | SUITE-VM exits one because the required named golden is missing. |
+
+The first version of `tail-record-let` placed its local recursive binder
+only inside an already normalized branch.  TL-M1 survived that version.
+The final fixture also wraps each entire result-producing body in a local
+recursive binding, preserves the duplicate-field output `7384`, and
+kills the mutant.  This is recorded as a test gap found and repaired,
+not as a successful result from the original test.
+
+Independent review checked annotated and returned functions, curried
+readers, source evaluation order and a local-recursion/match combination.
+Its corrected annotation fixture verifies that both recursive signatures
+have the same inferred row order.  A separate probe whose actual return
+layouts differ still needs conversions and remains outside the constant
+stack claim.
+The layout-effects fixture is a control.  The baseline also passes it.
+
+The final lowerer SHA256 is
+`d987b4b3513e491d0bb70ec4165d18db6a8436b0d1de29ac585367f3b039cf2e`.
+Exact source diffs, file hashes, command arguments, exits and outputs
+are retained under `/Users/oobi/Documents/gpt8/brisk-tail-evidence/mutations`.

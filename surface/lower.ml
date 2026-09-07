@@ -337,15 +337,9 @@ let rec convert (src : Types.ty) (dst : Types.ty) (v : Ir.t) : (Ir.t, Error.t) r
       refuse "M1"
 
 let prim_app (x : Ident.t) (vs : Ir.t list) : (Ir.t, Error.t) result =
-  Option.fold
-    ~none:(fun () ->
-      Error
-        (Error.parse nowhere
-           ("the name " ^ Ident.to_string x ^ " has no run-time slot")))
-    ~some:(fun (p : Primop.t) () ->
-      if Int.equal (Primop.arity p) (List.length vs) then Ok (Ir.IPrim (p, vs))
-      else refuse "M1")
-    (primop_of_name x) ()
+  let* p = need (primop_of_name x) ("the name " ^ Ident.to_string x ^ " has no run-time slot") in
+  if Int.equal (Primop.arity p) (List.length vs) then Ok (Ir.IPrim (p, vs))
+  else refuse "M1"
 
 let dedup_label (ls : Label.t list) : Label.t list =
   List.sort_uniq
@@ -442,14 +436,9 @@ let rec lower_expr (c : ctx) (e : Ast.expr) : (Ir.t, Error.t) result =
       if List.is_empty (poly_of_name c x) then look_val c x else refuse "M1"
   | Ast.Lam (p, b) -> lower_lam c false p b
   | Ast.App (f, a) -> lower_app c (spine (Ast.App (f, a)) [])
-  | Ast.Let (p, v, b) -> lower_let c p v b
+  | Ast.Let (p, v, b) -> lower_let c p v (fun c1 -> lower_expr c1 b)
   | Ast.LetRec (bs, b) -> lower_fix c bs (fun (c1 : ctx) -> lower_expr c1 b)
-  | Ast.If (a, b, d) ->
-      let* t = typed c e in
-      let* a1 = lower_expr c a in
-      let* b1 = lower_as c b t in
-      let* d1 = lower_as c d t in
-      Ok (Ir.IIf (a1, b1, d1))
+  | Ast.If (_, _, _) -> let* t = typed c e in lower_as c e t
   | Ast.Rec fs ->
       Result.map (fun (vs : Ir.t list) -> Ir.IRec vs)
         (map_result (lower_expr c) (List.map snd fs))
@@ -481,10 +470,25 @@ let rec lower_expr (c : ctx) (e : Ast.expr) : (Ir.t, Error.t) result =
       refuse "M1"
   | Ast.Quote _ | Ast.Splice _ | Ast.FoldRow _ -> refuse "M2"
 
-and lower_as (c : ctx) (e : Ast.expr) (target : Types.ty) : (Ir.t, Error.t) result =
-  let* source = typed c e in
-  let* v = lower_expr c e in
-  convert source target v
+(* Pass the final layout into control arms so tail calls need no round trip. *)
+and lower_as ?(inner = false) (c : ctx) (e : Ast.expr) (target : Types.ty) : (Ir.t, Error.t) result =
+  match e with
+  | Ast.Lam (p, b) when inner -> lower_lam ~target c true p b
+  | Ast.If (a, b, d) ->
+      let* a1 = lower_expr c a in
+      let* b1 = lower_as ~inner c b target in
+      let* d1 = lower_as ~inner c d target in
+      Ok (Ir.IIf (a1, b1, d1))
+  | Ast.Let (p, v, b) -> lower_let c p v (fun c1 -> lower_as ~inner c1 b target)
+  | Ast.LetRec (bs, b) -> lower_fix c bs (fun c1 -> lower_as ~inner c1 b target)
+  | Ast.Match (s, arms) -> lower_match ~inner ~target c s arms
+  | Ast.Ann (v, t) -> let* () = lower_ty t in lower_as ~inner c v target
+  | Ast.Lit _ | Ast.Var _ | Ast.Lam _ | Ast.App _ | Ast.Rec _ | Ast.RecExt _
+  | Ast.RecRes _ | Ast.Sel _ | Ast.Take _ | Ast.Inj _ | Ast.Bin _ | Ast.Use _
+  | Ast.Handle _ | Ast.Scope _ | Ast.Spawn _ | Ast.Join _ | Ast.Quote _ | Ast.Splice _ | Ast.FoldRow _ ->
+      let* source = typed c e in
+      let* v = lower_expr c e in
+      convert source target v
 
 and lower_sel (c : ctx) (r : Ast.expr) (l : Label.t) : (Ir.t, Error.t) result =
   let* t = typed c r in
@@ -595,17 +599,10 @@ and lower_lam ?target (c : ctx) (inner : bool) (p : Ast.pat) (b : Ast.expr) :
       x []
   in
   let c3 = { c2 with records = (x, offsets) :: c2.records } in
-  let* source = typed c3 b in
-  let* raw = lower_body c3 b in
-  let* body = convert source result raw in
+  let* body = lower_as ~inner:true c3 b result in
   Ok (mk (Ir.ILam (caps, body)))
 
-and lower_body (c : ctx) (b : Ast.expr) : (Ir.t, Error.t) result =
-  match classify b with
-  | HLam (q, b2) -> lower_lam c true q b2
-  | HVar _ | HApp (_, _) | HAnn _ | HOther -> lower_expr c b
-
-and lower_let (c : ctx) (p : Ast.pat) (v : Ast.expr) (b : Ast.expr) :
+and lower_let (c : ctx) (p : Ast.pat) (v : Ast.expr) (body : ctx -> (Ir.t, Error.t) result) :
     (Ir.t, Error.t) result =
   let* x = one_name p in
   let* (pairs, _, _, st) = Infer.infer_bound c.st c.env p v in
@@ -616,7 +613,7 @@ and lower_let (c : ctx) (p : Ast.pat) (v : Ast.expr) (b : Ast.expr) :
       { c with env = Infer.extend_sc c.env pairs; frame = SVal x :: c.frame; st }
       x ls
   in
-  let* b1 = lower_expr { c1 with records = (x, record_of c v) :: c1.records } b in
+  let* b1 = body { c1 with records = (x, record_of c v) :: c1.records } in
   Ok (Ir.ILet (v1, b1))
 
 and lower_fix (c : ctx) (bs : Ast.bind list)
@@ -660,52 +657,53 @@ and lower_member (c : ctx) (g : Ident.t) (v : Ast.expr) (names : Ident.t list)
       Error
         (Error.parse nowhere "a recursive binding names a function at M0")
 
-and lower_match (c : ctx) (s : Ast.expr) (arms : Ast.arm list) :
+and lower_match ?(inner = false) ?target (c : ctx) (s : Ast.expr) (arms : Ast.arm list) :
     (Ir.t, Error.t) result =
   let* (t, st1) = typed_state c s in
   let (res, st2) = Infer.fresh_ty st1 in
   let* (_, st3) = Infer.infer_arms st2 c.env t res Types.REmpty arms in
   let (t1, st4) = Infer.zonk st3 t in
-  let (target, st) = Infer.zonk st4 res in
+  let (inferred, st) = Infer.zonk st4 res in
+  let target = Option.value target ~default:inferred in
   let* s1 = lower_expr c s in
   let* s1 = convert t t1 s1 in
   let c = { c with st } in
-  Option.fold
-    ~none:(fun () -> Result.map (fun (ch : Ir.t) -> Ir.ILet (s1, ch)) (lower_chain c t1 (record_of c s) target arms))
+  Option.fold ~none:(fun () -> Result.map (fun (ch : Ir.t) -> Ir.ILet (s1, ch))
+    (lower_chain ~inner c t1 (record_of c s) target arms))
     ~some:(fun (row : Types.row) () ->
       let fs = Row.fields row in
       let* cases =
-        map_result (fun ((p, b) : Ast.arm) -> lower_arm c fs target p b) arms
+        map_result (fun ((p, b) : Ast.arm) -> lower_arm ~inner c fs target p b) arms
       in
       Ok (Ir.ISwitch (s1, cases)))
     (variant_row t1) ()
 
-and lower_chain (c : ctx) (t : Types.ty) (origin : (Label.t * Ident.t) list) (target : Types.ty) (arms : Ast.arm list) :
-    (Ir.t, Error.t) result =
+and lower_chain ?(inner = false) (c : ctx) (t : Types.ty) (origin : (Label.t * Ident.t) list)
+    (target : Types.ty) (arms : Ast.arm list) : (Ir.t, Error.t) result =
   match arms with
   | [] -> refuse "M1"
   | (Ast.PLit l, b) :: more ->
-      let* b1 = lower_as (push c (SVal hidden)) b target in
+      let* b1 = lower_as ~inner (push c (SVal hidden)) b target in
       Option.fold ~none:(fun () -> Ok b1)
         ~some:(fun (test : Ir.t) () ->
           Result.map
             (fun (rest : Ir.t) -> Ir.IIf (test, b1, rest))
-            (lower_chain c t origin target more))
+            (lower_chain ~inner c t origin target more))
         (lit_test l) ()
-  | (Ast.PWild, b) :: _ -> lower_as (push c (SVal hidden)) b target
+  | (Ast.PWild, b) :: _ -> lower_as ~inner (push c (SVal hidden)) b target
   | (Ast.PVar x, b) :: _ ->
       let c1 = poly_add { (push c (SVal x)) with env = Env.add x (Types.mono t) c.env } x [] in
-      lower_as { c1 with records = (x, origin) :: c1.records } b target
+      lower_as ~inner { c1 with records = (x, origin) :: c1.records } b target
   | (Ast.PInj (_, _, _), _) :: _ | (Ast.PRec (_, _), _) :: _ -> refuse "M1"
 
-and lower_arm (c : ctx) (fs : (Label.t * Types.ty) list) (target : Types.ty) (p : Ast.pat)
-    (b : Ast.expr) : (int * Ir.t, Error.t) result =
+and lower_arm ?(inner = false) (c : ctx) (fs : (Label.t * Types.ty) list)
+    (target : Types.ty) (p : Ast.pat) (b : Ast.expr) : (int * Ir.t, Error.t) result =
   match p with
   | Ast.PInj (l, occ, q) ->
       let* tag = occ_at fs l (Label.occ_to_int occ) in
       let* x = one_name q in
       let* b1 =
-        lower_as
+        lower_as ~inner
           (poly_add
              { c with
                env = Env.add x (Types.mono (field_at fs tag)) c.env;

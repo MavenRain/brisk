@@ -1,0 +1,6 @@
+(* Literal match arms normalize records without wrapping recursive calls. *)
+let rec first count = match count with | 0 -> { b = 7, a = 1 } | remaining -> second (remaining - 1)
+and second count = match count with | 0 -> { a = 2, b = 8 } | remaining -> first (remaining - 1)
+let read r = (r : { a : int, b : int }).b
+let shown = print_int (read (first 100000))
+let main = print_int (read (first 100001))

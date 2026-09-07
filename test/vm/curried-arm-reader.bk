@@ -1,0 +1,5 @@
+(* A control arm holds a curried reader lambda under its annotation. *)
+let mk = fun j -> ((if j == 0 then (fun r -> { b = r.n, a = 1 }) else (fun r -> { b = r.n + j, a = 2 })) : { n : int, pad : int } -> { a : int, b : int })
+let read v = (v : { a : int, b : int }).b
+let x0 = print_int (read (mk 0 { pad = 1, n = 3 }))
+let main = print_int (read (mk 4 { n = 3, pad = 2 }))

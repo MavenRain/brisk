@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 100 programs with their goldens, nine exact lowering refusals after successful parsing and typing, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 114 programs with their goldens, ten exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It also names `tailrec` and the eleven deep result-layout fixtures, checks that each named source and its golden exist, and holds each named source at a maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -229,14 +229,47 @@ the lowerer were also shortened.  No logic moved outside the trusted base.
 
 | Files | Source | Kind | Purpose |
 | --- | --- | --- | --- |
-| `test/vm/layout-*.bk`, 37 sources | none, except the migrated refusal named above | NEW or MOVED | Semantic regressions and one retained control for record/variant layouts, nested payloads, generic and higher-order functions, reader adapters, callback arguments, branch joins, mutual recursion and evaluation order. |
-| `test/vm/layout-*.out`, 37 goldens | source semantics | NEW | Hand-derived exact bytes without a final newline. |
+| `test/vm/layout-*.bk`, 39 sources | none, except the migrated refusal named above | NEW or MOVED | Semantic regressions and one retained control for record/variant layouts, nested payloads, generic and higher-order functions, reader adapters, callback arguments, branch joins, mutual recursion and evaluation order. |
+| `test/vm/layout-*.out`, 39 goldens | source semantics | NEW | Hand-derived exact bytes without a final newline. |
 | `test/lower-neg/layout-open-record-return.bk` and `.err` | none | NEW | Refuses returning a record with an unknown physical tail. |
 | `test/lower-neg/layout-open-record-extension-return.bk` and `.err` | none | NEW | Refuses returning an extension of an unknown record. |
 | `test/lower-neg/layout-open-record-wrapped-return.bk` and `.err` | none | NEW | Refuses hiding an unknown record layout inside another record. |
 | `test/lower-neg/layout-open-variant-choose.bk` and `.err` | none | NEW | Refuses an open variant parameter whose tail has no tag convention. |
 
 The former higher-order-domain refusal is now a VM fixture with output
-`7`.  The nine remaining lowering refusals require successful parsing and
+`7`.  The ten remaining lowering refusals require successful parsing and
 checking before their exact diagnostic comparison.  All evidence lives
 under `/Users/oobi/Documents/gpt8/brisk-layout-evidence`.
+
+### Tail result layout, 2026-09-07
+
+The lowerer passes the consumer final result layout into conditional
+arms, match arms, local and recursive binding bodies, annotations and
+immediately nested curried lambdas.  All fixtures below are new Brisk
+sources.  Every golden is hand derived exact stdout bytes with no final
+newline.  The deep fixtures call to depth 100000 and then to depth
+100001, so both parities of the two member mutual recursion supply the
+result.  The IR and all VM files retain their previous contents.
+
+| Files | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/tail-record-if.bk` and `.out` | none | NEW | Two conditional members return records in opposite field orders.  Golden `78`. |
+| `test/vm/tail-record-let.bk` and `.out` | none | NEW | Local lets and local recursive binders wrap each result, with duplicate record labels.  Golden `7384`. |
+| `test/vm/tail-record-literal-match.bk` and `.out` | none | NEW | Literal match arms return the records.  Golden `78`. |
+| `test/vm/tail-record-variant-match.bk` and `.out` | none | NEW | Variant match arms return the records.  The base arm comes first in each member, so the tail call sits in the second arm.  Golden `78`. |
+| `test/vm/tail-record-annotation.bk` and `.out` | none | NEW | An annotation on each body and on each recursive call names the final layout.  Golden `78`. |
+| `test/vm/tail-variant-if.bk` and `.out` | none | NEW | Conditional members return opposite variant tags.  Golden `1078`. |
+| `test/vm/tail-variant-payload-match.bk` and `.out` | none | NEW | A variant payload holds records whose fields change order for each parity.  Golden `78`. |
+| `test/vm/tail-curried-nested-record.bk` and `.out` | none | NEW | Curried members return a record with a nested record payload.  Golden `78`. |
+| `test/vm/tail-curried-readers.bk` and `.out` | none | NEW | Curried members take two open record readers with different field orders.  Golden `78`. |
+| `test/vm/tail-curried-annotation.bk` and `.out` | none | NEW | Each annotated curried body shares one final result layout.  Golden `78`. |
+| `test/vm/layout-effects.bk` and `.out` | none | NEW | Result conversion keeps the order and the count of the effects of each branch.  Golden `177288`. |
+
+### Review round fixtures, 2026-09-07
+
+| Files | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/curried-arm-reader.bk` and `.out` | none | NEW | An annotated conditional between two curried reader lambdas returns a record.  The control arm must keep the enclosing target, so the reader offsets stay correct.  Hand derived golden `37` with no final newline. |
+| `test/vm/layout-callback-reader-two-labels.bk` and `.out` | none | NEW | A closed call site supplies two reader offset constants for a callback that reads two labels of a three field record.  The golden `43` observes both constants, because `r.n` is 40 and `r.m` is 3.  A zeroed offset constant changes the output. |
+| `test/vm/let-shadow-reader.bk` and `.out` | none | NEW | A shadowing local rebinding reads its record metadata from the outer context.  Hand derived golden `5` with no final newline. |
+| `test/lower-neg/layout-open-restriction-read.bk` and `.err` | none | NEW | Refuses a restriction of an open row, which has no known offset.  The member binds the restriction and reads a different label through its reader, so the program reaches the open-row guard of `offset_of` first.  It is the one fixture that does.  A mutant that deletes that guard accepts the program, and then this fixture fails alone.  The diagnostic bytes equal those of `layout-open-record-return.err`. |
