@@ -1,0 +1,4 @@
+let read v = match (v : < a : int, b : int >) with | < a x > -> x + 100 | < b y > -> y
+let original = < b 7 >
+let alias = original
+let main = print_int (read alias)

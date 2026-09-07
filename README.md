@@ -5,10 +5,11 @@ an affine discipline over resources, and one canonical printed form.  M0
 plans the front end, the type checker, a stack VM and a driver, with no
 dependency outside the OCaml standard library.  Through Stage D, the
 front end, checker and VM run through the test executables.  Stage D is
-in progress: record layouts and contextual variant tags still have known
-lowering failures (SPEC.md section 10).  Row-reader offsets now survive
-currying, partial application, captures and recursive groups.  Open-row
-restriction and open calls without identifiable offset binders are refused.
+in progress.  Lowering reconciles record order and variant tags across
+annotations, calls, results and branches, including nested payloads and
+higher-order functions (SPEC.md section 10).  Row-reader offsets survive
+currying, partial application, captures and recursive groups.  Unsupported
+open-row transport is refused before emission.
 The assembler preserves lexical bindings and captures across temporary
 argument pushes, including nested lets, matches and recursive groups.
 The driver arrives at Stage E.  The grammar,
@@ -60,9 +61,9 @@ HOUSE holds the house rules of the plan section 11 over lib, surface and
 vm, plus test.  PARSE holds parse, print, parse and print equal on its 45
 fixtures.  SUITE-CHECK requires at least 18 positive fixtures and 36
 negative twins.  SUITE-VM checks the stdout goldens of every program with
-`main` in `test/vm` and `test/pos`, with a floor of 63 programs.  It
-requires at least six lowering refusals to parse and check successfully
-before matching their exact diagnostic goldens;  the tree ships six.
+`main` in `test/vm` and `test/pos`, with a floor of 100 programs.  It
+requires at least nine lowering refusals to parse and check successfully
+before matching their exact diagnostic goldens;  the tree ships nine.
 SUITE-VM also
 requires all 22 instructions to be emitted and executed, and the
 100,000-call tail recursion fixture to use at most 64 stack slots.

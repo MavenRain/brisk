@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 63 programs with their goldens, six exact lowering refusals after successful parsing and typing, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 100 programs with their goldens, nine exact lowering refusals after successful parsing and typing, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -148,8 +148,8 @@ the reader changes do not copy code from another project.
 | `test/lower-neg/annotated-reader.err` | none | NEW | Exact M1 lowering diagnostic. |
 | `test/lower-neg/reader-through-unconstrained.bk` | none | NEW | Refuses a reader that goes through an unconstrained parameter and escapes into the result (review J4). |
 | `test/lower-neg/reader-through-unconstrained.err` | none | NEW | Exact M1 lowering diagnostic. |
-| `test/lower-neg/open-higher-order-domain.bk` | none | NEW | Refuses an unknown higher-order domain with the milestone refusal and not an internal message (review J6). |
-| `test/lower-neg/open-higher-order-domain.err` | none | NEW | Exact M1 lowering diagnostic. |
+| `test/vm/layout-open-higher-order-domain.bk` | former `test/lower-neg/open-higher-order-domain.bk` | MOVED | Shared call inference now resolves the reader domain; the source is unchanged. |
+| `test/vm/layout-open-higher-order-domain.out` | none | NEW | Hand-derived stdout `7`, replacing the former lowering diagnostic. |
 | `test/pos/record-restrict.bk` | none | SHIPPED | Holds `let drop r = { r - n }`, the declaration of `test/lower-neg/open-row-restriction.bk`. The declaration type checks, so SUITE-CHECK reads it. The file declares no `main`, so SUITE-VM skips it. Its lowering answers `Not_yet M1` (review J7). |
 | `test/vm/record-poly-curried.bk` | none | NEW | Offsets at two curried record parameters. |
 | `test/vm/record-poly-curried.out` | none | NEW | Hand-derived stdout `15`. |
@@ -217,3 +217,26 @@ ends with one newline.
 | `test/vm/stack-tail-nested.out` | none | NEW | Hand-derived stdout `8`. |
 | `test/vm/stack-function-head.bk` | none | NEW | The call head binds and captures after arguments are pushed. |
 | `test/vm/stack-function-head.out` | none | NEW | Hand-derived stdout `3`. |
+
+### Layout reconciliation, 2026-09-06
+
+The layout conversion, shared call inference, fresh-type handling and
+recursive result normalization in `surface/lower.ml` are new Brisk code.
+The IR and all VM files retain their previous contents.  Introductory
+comments in `surface/infer.ml` and `lib/types.ml` were shortened; their
+declarations and executable code are unchanged.  Historical comments in
+the lowerer were also shortened.  No logic moved outside the trusted base.
+
+| Files | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/layout-*.bk`, 37 sources | none, except the migrated refusal named above | NEW or MOVED | Semantic regressions and one retained control for record/variant layouts, nested payloads, generic and higher-order functions, reader adapters, callback arguments, branch joins, mutual recursion and evaluation order. |
+| `test/vm/layout-*.out`, 37 goldens | source semantics | NEW | Hand-derived exact bytes without a final newline. |
+| `test/lower-neg/layout-open-record-return.bk` and `.err` | none | NEW | Refuses returning a record with an unknown physical tail. |
+| `test/lower-neg/layout-open-record-extension-return.bk` and `.err` | none | NEW | Refuses returning an extension of an unknown record. |
+| `test/lower-neg/layout-open-record-wrapped-return.bk` and `.err` | none | NEW | Refuses hiding an unknown record layout inside another record. |
+| `test/lower-neg/layout-open-variant-choose.bk` and `.err` | none | NEW | Refuses an open variant parameter whose tail has no tag convention. |
+
+The former higher-order-domain refusal is now a VM fixture with output
+`7`.  The nine remaining lowering refusals require successful parsing and
+checking before their exact diagnostic comparison.  All evidence lives
+under `/Users/oobi/Documents/gpt8/brisk-layout-evidence`.

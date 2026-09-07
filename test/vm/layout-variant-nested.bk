@@ -1,0 +1,4 @@
+let read v = match (v : < other : int, boxed : < left : int, right : int > >) with | < other n > -> n + 1000 | < boxed inner > -> (match inner with | < left x > -> x + 100 | < right y > -> y)
+let original = < boxed (< right 7 >) >
+let first = print_int (read original)
+let main = print_int (read (< boxed (< left 8 >) >))

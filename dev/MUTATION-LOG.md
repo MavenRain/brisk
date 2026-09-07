@@ -584,3 +584,43 @@ commands and captured logs live under
 The two existing record-order and contextual-variant reproduction
 goldens still fail. These controls establish the stack-slot repair,
 without closing the remaining Stage D layout work.
+
+### Layout regression and mutation controls, 2026-09-06
+
+The saved executable from `e3b42be` passes one of the 37 new `layout-*`
+fixtures and fails 36 after successful parsing and checking.  The final
+executable passes all 37 and the complete 100-program suite.  The four
+new lowering refusals were accepted by the baseline lowerer; the final
+refusal driver requires their exact M1 diagnostics.
+
+Six isolated source mutations build successfully and fail their focused
+semantic goldens.  The first five use the implementation snapshot before
+the final nested-function and callback review fixes.  The callback mutant
+uses the final source.  Each snapshot hash and exact diff is retained.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| LY-M1: return records unchanged instead of rebuilding their layout | Five record boundary fixtures | Four stdout mismatches and one nested-record shape error. |
+| LY-M2: return variants unchanged instead of retagging | Five variant boundary fixtures | Three stdout mismatches and two nested-payload shape errors. |
+| LY-M3: skip generic arrow specialization | Three generic function fixtures | Three stdout mismatches. |
+| LY-M4: omit the recursive member's group target | `layout-mutual-record-result` | Stdout mismatch, expected `78`. |
+| LY-M5: omit reader argument/result conversion | `layout-reader-adapter-payload`, `layout-reader-adapter-result` | Two stdout mismatches, each expected `7`. |
+| LY-M6: ignore earlier callback parameter types in the reader bypass | `layout-callback-reader` | `PrintInt` receives a closure instead of an integer; VM exits one. |
+
+The original focused control passes all 32 fixtures present in its
+snapshot.  The final gate control uses the final source and all 100
+programs, and passes nine refusals plus the 22/22 census.  Removing one
+VM fixture pair fails with `FAIL SUITE-VM main=99 floor=100`.  Removing
+one lowering refusal pair fails with
+`FAIL SUITE-VM missing lowering refusals`.  The floor controls change only
+the selected fixture pair; the source mutants change only the lowerer.
+Earlier 99-program floor controls are retained separately as intermediate
+evidence, not as the final validation.
+
+Independent review verified the generic, nested-function, reader-adapter,
+mutual-recursion and callback fixes.  Final checks found no blocker within
+the documented supported layouts.  Open layout transport remains future
+work as described in `dev/STAGE-D-STATUS.md`.
+
+Commands, source hashes, exact diffs, exit codes and captured output are
+under `/Users/oobi/Documents/gpt8/brisk-layout-evidence/mutations`.

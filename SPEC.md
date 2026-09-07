@@ -447,15 +447,13 @@ in `surface/lower.ml`, because it reads the surface AST and the checker.
 `Result`.  `Exec.exec` returns `(Value.value, Error.t) result`.  These
 steps run in one process.  The Stage E driver is not present yet.
 
-Stage D remains in progress.  In particular, the current lowering can
-misalign a closed record layout with its inferred field offsets, and can
-assign a variant tag without the row context of a consuming function.
-Reader offsets now survive curried parameters, partial applications,
-captures and recursive groups.  Restriction of an open record row is
-refused with `Not_yet M1`; general higher-order reader transport and row
-joins still need layout support.  The offset and tag rules below state
-the required semantics.  The VM goldens and instruction census do not
-establish those rules for every checked program.
+Stage D remains in progress.  Lowering now reconciles closed record
+layouts and contextual variant tags.  Annotations, calls, lambda results,
+branches and matches convert nested layouts explicitly.  Reader offsets
+survive curried parameters, partial applications, captures and recursive
+groups.  Unsupported open-row transport answers `Not_yet M1` before
+emission.  The VM goldens and instruction census do not establish correct
+lowering of every checked program.
 
 ### 10.1 The core IR
 
@@ -523,13 +521,31 @@ outermost occurrence is the first matching field.  Extension prepends a
 field and rebuilds the array.  Restriction removes the selected outermost
 occurrence and rebuilds the remaining fields in order.
 
+Semantic row equality permits distinct labels to change order.  Physical
+layout conversion matches each field by label and occurrence, binds the
+source record once, and rebuilds it in the consumer's order.  Nested
+records and variants are converted recursively.  Source expressions
+retain their evaluation order.  A variant conversion switches on the
+source tag and constructs the consumer's tag with its converted payload.
+
+A function adapter converts arguments from the consumer's layout to the
+producer's layout and results in the reverse direction.  Generic source
+variables are specialized together, so an identity function annotated
+with different domain and result orders still converts its result.
+Every call infers its complete argument list in one state before emission;
+repeated generic parameters therefore share one physical convention.
+Recursive members normalize results to their shared group signatures.
+Declaration environments advance in source order and retain fresh-type
+state, so later bindings cannot overwrite an earlier value's layout.
+
 A closed selection emits `GetField` with a static offset.  A
 row-polymorphic reader receives extra integer offsets immediately before
 each source record parameter.  A signature records these offsets at each
 curried parameter position, including empty positions before later reader
 parameters.  Partial applications consume signature entries one source
 argument at a time, and aliases retain the remainder.  Its selection emits
-`GetFieldDyn`.  Closed call sites supply constants.  Open record binders
+`GetFieldDyn`.  Closed call sites supply constants from the converted
+argument layout.  Open record binders
 and their aliases can forward their known offset slots; an open expression
 without such a binder is refused with `Not_yet M1`.
 
@@ -542,13 +558,19 @@ source parameters use the existing nested-lambda joining convention.
 Neither the IR shape nor the instruction set changes.
 
 Closed higher-order parameter types receive a curried adapter closure
-that supplies each reader parameter's offsets.  Unconstrained parameters
-still pass values through without an adapter.  This supports an ignored
-reader value but does not establish general higher-order reader transport.
+that supplies each reader parameter's offsets and converts argument
+payloads and results.  A whole call can resolve an initially unknown
+higher-order domain, including `apply get { pad = 9, n = 7 }`.
+Unconstrained parameters can still pass an ignored reader without an
+adapter.  This does not establish general higher-order reader transport.
 A named reader used as a plain value in a record or conditional branch
 is still refused.  Open-row restriction is also refused before emission,
 because `ResRec` requires a static offset and the full residual layout is
 not available.  Closed restriction retains its existing behavior.
+Functions returning an open record, including inside a record or variant
+payload, are refused.  Function parameters containing an open variant
+row are also refused.  Those paths require layout information about an
+unknown tail, which the current calling convention does not carry.
 
 A variant block holds a tag and payload array.  The tag is the absolute
 position of the label occurrence in its closed variant row, including

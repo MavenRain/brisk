@@ -1,0 +1,3 @@
+let read r = match (r : { code : < a : int, b : int >, pad : int }).code with | < a x > -> x + 100 | < b y > -> y
+let original = { pad = 1, code = < b 7 > }
+let main = print_int (read original)

@@ -1,0 +1,4 @@
+let choose flag = if flag then < a 7 > else < b 8 >
+let read v = match (v : < a : int, b : int >) with | < a x > -> x + 100 | < b y > -> y
+let first = print_int (read (choose true))
+let main = print_int (read (choose false))

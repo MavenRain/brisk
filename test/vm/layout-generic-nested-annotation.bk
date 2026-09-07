@@ -1,0 +1,5 @@
+let twice x = { first = x, second = x }
+let f = (twice : { a : int, b : int } -> { first : { b : int, a : int }, second : { a : int, b : int } })
+let result = f { a = 1, b = 7 }
+let first = print_int result.first.b
+let main = print_int result.second.b

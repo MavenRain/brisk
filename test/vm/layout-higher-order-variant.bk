@@ -1,0 +1,4 @@
+let apply f = (f : < a : int, b : int > -> < x : int, y : int >) (< b 7 >)
+let transform v = match (v : < b : int, a : int >) with | < b n > -> (< y n > : < y : int, x : int >) | < a m > -> (< x m > : < y : int, x : int >)
+let result = apply transform
+let main = print_int (match result with | < x n > -> n + 100 | < y m > -> m)

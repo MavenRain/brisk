@@ -1,0 +1,5 @@
+let rec first count = if count == 0 then { b = 7, a = 1 } else second (count - 1)
+and second count = if count == 0 then { a = 2, b = 8 } else first (count - 1)
+let read r = (r : { a : int, b : int }).b
+let shown = print_int (read (first 2))
+let main = print_int (read (first 3))

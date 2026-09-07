@@ -1061,3 +1061,71 @@ described in `dev/STAGE-D-STATUS.md`.
 
 Full baseline, gate, mutation and independent review evidence is retained
 under `/Users/oobi/Documents/gpt8/brisk-stack-evidence`.
+
+### Layout reconciliation continuation, 2026-09-06
+
+Starting commit: `e3b42be`.  The main repository was clean.  Implementation
+and validation ran in `/Users/oobi/Documents/gpt8/brisk-reconcile`, a local
+clone.  The completed delta is staged in `/Users/oobi/Documents/brisk`;
+the user commits.
+
+Closed records previously retained their producer's order when a consumer
+used another order.  Bare variant injections also lost the consumer's row
+context.  The two documented examples now both print their semantic `7`.
+
+| Id | Change | Reason |
+| --- | --- | --- |
+| D-D-C14 | Convert record fields by label and occurrence, retag variant blocks, and recurse through nested payloads. | Semantic row equality does not imply equal physical layouts.  Each conversion evaluates its input once. |
+| D-D-C15 | Normalize annotations, branch/match results, lambda results and recursive group members. | A later call cannot recover layout information erased at an earlier boundary. |
+| D-D-C16 | Specialize complete function types and infer call arguments in one state. | Repeated generic parameters and nested polymorphic functions require one shared layout convention. |
+| D-D-C17 | Adapt function arguments toward their producer and results toward their consumer, including hidden reader offsets. | Higher-order record payloads and results can use different orders. |
+| D-D-C18 | Advance declaration environments in source order and retain fresh-type state in scopes. | Final environments and reused type identities can corrupt an earlier binding's layout. |
+| D-D-C19 | Refuse open record results and open variant parameters; preserve an ignored-reader bypass only when its type is absent from earlier arguments and the remaining result. | Unknown tails need more layout transport, and an earlier callback can consume a later reader argument. |
+| D-D-C20 | Add 37 VM pairs, migrate one former refusal to a positive fixture, add four refusals, and require 100 programs plus nine refusals. | The gate checks the new behavior and the unsupported boundaries without reducing existing coverage. |
+
+The saved baseline executable passes one of the 37 new positive fixtures
+and fails 36.  All 37 now pass.  The new refusal cases were accepted by
+the old lowerer after successful parsing and checking.  They now match
+their exact M1 diagnostic goldens.  Independent review found and verified
+the generic, nested-function, reader-adapter, mutual-recursion and callback
+repairs recorded above.
+
+The complete pinned gate battery passed on the final source:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=45
+CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0
+PASS SUITE-CHECK positives=18 twins=36
+REFUSALS files=9 ok=9 fail=0
+VM files=118 main=100 skipped=18 ok=100 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=100 goldens=100
+TRUSTED-LINES core=2000/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=1468.765
+GATES-OK
+```
+
+| Leg | Tier | Elapsed ms | Exit |
+| --- | --- | ---: | ---: |
+| BUILD | MED | 838.341 | 0 |
+| HOUSE | FAST | 466.118 | 0 |
+| PARSE | MED | 760.490 | 0 |
+| SUITE-CHECK | SUITE | 720.934 | 0 |
+| SUITE-VM | SUITE | 3540.476 | 0 |
+| TRUSTED-LINES | FAST | 280.924 | 0 |
+| DENOMINATORS | SLOW | 62866.068 | 0 |
+
+One earlier run reached the HOUSE timeout during concurrent builds.
+The final run passes with the original watchdog limits.  No gate cap,
+trusted path, IR arm, VM instruction, primitive or denominator pin changed.
+The core fits its existing bound by replacing redundant helpers and
+shortening historical comments; no counted logic moved to another file.
+
+Stage D remains incomplete because open layout transport and several
+pattern forms retain lowering refusals.  Stage E remains unimplemented.
+The current scope and next work are in `dev/STAGE-D-STATUS.md`; baseline,
+mutation, gate and review artifacts are in
+`/Users/oobi/Documents/gpt8/brisk-layout-evidence`.

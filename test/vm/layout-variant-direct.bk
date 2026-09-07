@@ -1,0 +1,3 @@
+let read v = match (v : < a : int, b : int >) with | < a x > -> x + 100 | < b y > -> y
+let first = print_int (read (< b 7 >))
+let main = print_int (read (< a 8 >))

@@ -1,0 +1,3 @@
+let ident x = x
+let v = (< fn ident > : < fn : { a : int, b : int } -> { b : int, a : int } >)
+let main = print_int (match v with | < fn f > -> (f { a = 1, b = 7 }).b)

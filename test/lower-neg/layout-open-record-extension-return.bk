@@ -1,0 +1,2 @@
+let extend r = let n = r.n in { added = 0 | r }
+let main = print_int ((extend { pad = 1, n = 7 }).pad)

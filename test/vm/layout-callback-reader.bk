@@ -1,0 +1,4 @@
+let get r = r.n
+let feed f x = f x
+let invoke g = g ({ n = 7 } : { n : int })
+let main = print_int (feed invoke get)

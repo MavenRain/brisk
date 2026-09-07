@@ -1,30 +1,6 @@
-(* surface/infer.ml:  the judgment of M0-PLAN.md:144-146, section 3.9 of
-   the Stage B brief.
-
-   The file sits in surface/ and not in lib/ (D-B-43).  The judgment
-   reads Ast, Ast lives in brisk_surface, and surface/dune declares
-   (libraries brisk_core), so a reference to Ast from lib/ makes a
-   library cycle that dune refuses.  surface/dune leaves its module list
-   open (D-A-12), so the file joins brisk_surface with no dune edit, and
-   the ten lib/ files of the brief stay ten.  The house rules of lib/
-   still hold here by hand:  no ref, no mutable, no array and no table.
-
-   The state is one record with the store and the current level (D-B-15).
-   The next fresh identity rides inside the store (D-B-29), so no second
-   counter can hand two variables one identity.
-
-   The residual row is threaded and never dropped (D-B-16).  A lambda
-   carries the row of its body inside the arrow, a declaration holds its
-   own row against REmpty, and every M0 arm answers REmpty, so no M0
-   golden prints an arrow with a row inside it.
-
-   Generalization runs at a let, at a let rec and at a top declaration,
-   over every variable whose level is deeper than the level after leave,
-   and only when the right side is a syntactic value (D-B-17).
-
-   The surface tree carries no position (Stage A ast.ml), so every error
-   of this file reports the 1:1 point span (D-B-50).  A negative golden
-   holds the name and that span. *)
+(* The pure judgment threads a substitution store, fresh identities and levels.
+   Lets generalize syntactic values; all M0 effects are empty.
+   Ast has no spans, so diagnostics use the common 1:1 point. *)
 
 type state = { store : Subst.t;  level : Level.t }
 

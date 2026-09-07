@@ -1,0 +1,3 @@
+let read r = ((r : { a : int, payload : { x : int, y : int } }).payload).y
+let original = { payload = { y = 7, x = 2 }, a = 1 }
+let main = print_int (read original)

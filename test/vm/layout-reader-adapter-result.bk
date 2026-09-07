@@ -1,0 +1,3 @@
+let get r = r.n
+let apply f = (f ({ n = { b = 7, a = 1 }, pad = 0 } : { n : { b : int, a : int }, pad : int }) : { a : int, b : int }).b
+let main = print_int (apply get)

@@ -1,21 +1,5 @@
-(* lib/types.ml:  the type grammar of M0-PLAN.md:126-137, declared whole
-   (R-M0-2).  One recursive group holds ty, row, mult and kind (D-B-3),
-   and a scheme sits beside them (D-B-4), because pp.ml, env.ml and
-   infer.ml all read it.
-
-   A variable is an identity and a level (D-B-1).  Its binding lives in
-   the store of subst.ml and never inside the variable itself, because
-   the house rule of section 11 of the plan bans a cell that changes.
-
-   The three variable records carry distinct field names (D-B-27).  One
-   field name in three records of one file is an ambiguous label, and
-   -warn-error +a turns the ambiguity warning into a build failure.
-
-   Con names int, string, bool and unit, and there is no tuple arm
-   (D-B-2):  R-M0-3 cuts the tuple and makes a list a variant.
-
-   The row of an arrow is the residual effect row of M0-PLAN.md:144.  At
-   M0 every arm answers REmpty, and Stage C to Stage E keep the field. *)
+(* Immutable type and scoped-row grammar.  Variable bindings live in Subst.
+   Arrows retain multiplicity and residual effects through later milestones. *)
 
 type tyvar = { tv_id : int;  tv_lv : Level.t }
 

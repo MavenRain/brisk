@@ -1,0 +1,2 @@
+let wrap r = let n = r.n in { held = r }
+let main = print_int ((wrap { pad = 1, n = 7 }).held.pad)

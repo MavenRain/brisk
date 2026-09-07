@@ -233,7 +233,7 @@ leg_suite_check () {
 # tailrec must use at most 64 stack slots.
 leg_suite_vm () {
   local out code line n r s k m census stack peak
-  local main_floor=63
+  local main_floor=100
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
   if [[ $code -ne 0 || -n $out ]]; then
@@ -243,7 +243,7 @@ leg_suite_vm () {
     return 1
   fi
   local refused=($ROOT/test/lower-neg/*.bk(N))
-  if [[ ${#refused} -lt 6 ]]; then
+  if [[ ${#refused} -lt 9 ]]; then
     print -r -- "FAIL SUITE-VM missing lowering refusals"
     return 1
   fi

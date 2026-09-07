@@ -1,0 +1,3 @@
+let mark n = let shown = print_int n in n
+let read r = (r : { a : int, b : int }).b
+let main = print_int (read { b = mark 7, a = mark 1 })

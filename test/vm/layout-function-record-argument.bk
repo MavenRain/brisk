@@ -1,0 +1,3 @@
+let ident x = x
+let apply r = (r.f ({ a = 1, b = 7 } : { a : int, b : int }) : { b : int, a : int }).b
+let main = print_int (apply { f = ident })

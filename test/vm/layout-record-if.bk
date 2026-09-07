@@ -1,0 +1,4 @@
+let choose flag = if flag then { b = 7, a = 1 } else { a = 2, b = 8 }
+let read r = (r : { a : int, b : int }).b
+let first = print_int (read (choose true))
+let main = print_int (read (choose false))

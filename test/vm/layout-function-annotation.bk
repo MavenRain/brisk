@@ -1,0 +1,3 @@
+let source r = (r : { b : int, a : int }).b
+let target = (source : { a : int, b : int } -> int)
+let main = print_int (target { a = 1, b = 7 })

@@ -1,0 +1,2 @@
+let keep r = let n = r.n in r
+let main = print_int ((keep { pad = 1, n = 7 }).pad)

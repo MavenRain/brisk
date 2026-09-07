@@ -1,0 +1,4 @@
+let read v = match (v : < z : int, b : int, b : int >) with | < z x > -> x + 1000 | < b y > -> y + 100 | < b ^ 1 q > -> q
+let first = print_int (read (< b 7 >))
+let second = print_int (read (< b ^ 1 8 >))
+let main = print_int (read (< z 9 >))

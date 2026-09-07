@@ -1,0 +1,2 @@
+let read r = (r : { a : int, b : int }).b
+let main = print_int (read { b = 7, a = 1 })
