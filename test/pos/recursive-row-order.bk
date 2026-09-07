@@ -1,0 +1,2 @@
+(* Source schemes retain row order when runtime recursive layouts settle. *)
+let rec make n = if n == 0 then { b = 7, a = true } else make (n - 1)

@@ -1,0 +1,8 @@
+(* Identical body annotations settle every member and all three terminal phases. *)
+let rec first count = ((if count == 0 then { c = 1, b = 7, a = 1 } else second (count - 1)) : { a : int, b : int, c : int })
+and second count = ((if count == 0 then { a = 2, c = 2, b = 8 } else third (count - 1)) : { a : int, b : int, c : int })
+and third count = ((if count == 0 then { b = 9, a = 3, c = 3 } else first (count - 1)) : { a : int, b : int, c : int })
+let read r = (r : { a : int, b : int, c : int }).b
+let x0 = print_int (read (first 100000))
+let x1 = print_int (read (first 100001))
+let main = print_int (read (first 100002))

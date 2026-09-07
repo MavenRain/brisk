@@ -1259,3 +1259,117 @@ seven findings.  This round applies them.
 refusal floor from nine to ten.  The counted core falls to 1998 of 2000
 lines.  The machine is unchanged at 795 of 800.  No IR arm, instruction,
 primitive, path, cap or denominator pin changes.
+
+## Recursive group layout continuation, 2026-09-07
+
+The continuation starts at `2b4a6e2` in the isolated `brisk-groups`
+clone.  The validated delta is staged in `/Users/oobi/Documents/brisk`;
+the user commits.
+
+F17 identifies two accepted shapes that still consume stack for every
+recursive call: annotations around member bodies and a three-member group
+with three base-record orders.  Both reach the 65536-slot ceiling at
+100000 calls.  Target propagation alone cannot remove the conversions
+while each member has a different result convention.
+
+| Id | Change | Reason |
+| --- | --- | --- |
+| D-D-C25 | Add an identity-default layout policy to inference state and apply it when closing recursive group schemes. | Source checking must retain row order, while all lowering-time group inferences must agree on emitted layouts. |
+| D-D-C26 | Settle closed record fields and known variant tags with stable label sorting, recursively through payloads and arrow arguments and results. | Member conventions must agree through nested results, curried functions and callbacks; repeated labels must keep occurrence order. |
+| D-D-C27 | Retain unknown variant tails and complete open record types. | Wider consumers must still instantiate variant tails; existing open reader offsets and nested payload orders must stay valid. |
+| D-D-C28 | Reuse `lower_let` for ordinary declarations. | The shared binding path preserves inference state and reader metadata while paying for the new helper within the core line bound. |
+| D-D-C29 | Add nine deep group fixtures, nine semantic boundary pairs and one source-checker family; raise the VM floor to 132 and positive floor to 19. | F17 and nested payload settlement need enforced stack bounds; aliases, generic values, duplicate occurrences and source order need semantic evidence. |
+
+Applying settlement only to `lower_fix`'s environment would leave aliases
+and nested local groups with inferred metadata that differs from their
+runtime values.  The policy instead travels through every group inference
+in the lowering state.  It leaves type variables, opaque constructors,
+code types and effects unchanged.  The source checker keeps the identity
+policy, including its exact printed scheme order.
+
+The first implementation preserved every open variant row unchanged.
+That still overflowed when distinct constructors gave the group an open
+result row.  Settling its known prefix while retaining its tail fixes the
+case and permits consumers with extra tags.  Complete open records remain
+unchanged, because their existing reader convention does not transport
+arbitrary nested layout conversions.
+
+Independent review found no correctness defect in the final source.  Its
+boundary probes are promoted to the suite.  Three isolated mutations
+exercise group policy application, nested payload settlement and variant
+tail preservation.  The nested mutation exposed a fixture gap; the new
+same-tag payload case fails that mutation after passing its fixed control.
+`dev/MUTATION-LOG.md` records the controls and observed failures.
+
+The core is 2000/2000 lines and the machine remains 795/800.  No IR arm,
+instruction, primitive, dependency, counted path, limit or denominator
+pin changes.  F17's annotated and three-member cases now run within the
+existing 64-slot bound.  Stage D remains in progress with open layout and
+pattern limitations in `dev/STAGE-D-STATUS.md`; Stage E remains
+unimplemented.  Exact logs, source hashes and mutation diffs are retained
+under `/Users/oobi/Documents/gpt8/brisk-groups-evidence`.
+
+The final pinned gate battery passed:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=46
+CHECK files=55 pos=19 neg=36 inst=40 over=15 ok=55 fail=0
+PASS SUITE-CHECK positives=19 twins=36
+REFUSALS files=10 ok=10 fail=0
+VM files=151 main=132 skipped=19 ok=132 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=132 goldens=132
+TRUSTED-LINES core=2000/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=196.252
+GATES-OK
+```
+
+| Leg | Tier | Elapsed ms | Exit |
+| --- | --- | ---: | ---: |
+| BUILD | MED | 128.626 | 0 |
+| HOUSE | FAST | 131.442 | 0 |
+| PARSE | MED | 90.212 | 0 |
+| SUITE-CHECK | SUITE | 97.372 | 0 |
+| SUITE-VM | SUITE | 18682.193 | 0 |
+| TRUSTED-LINES | FAST | 49.491 | 0 |
+| DENOMINATORS | SLOW | 8248.571 | 0 |
+
+The twelve new deep cases peak at 8 to 20 stack slots.  Every existing
+named tail fixture retains the 64-slot bound, and `tailrec` peaks at
+seven.  The denominator remains this run's measurement, with no Stage E
+speed claim.
+
+## Review round, 2026-09-07
+
+The review of the recursive group layout continuation accepted seven
+findings.  This section lists each one.
+
+F3: `dev/gates.sh` moves `test/vm/group-boundary-captured-outer-typevar.bk`
+from the named list into `tail_files`, so the 64-slot bound holds this
+deep fixture.
+
+F1: `surface/lower.ml` gives the state of `specialize` the
+`settle_layout` policy, so no path of the lowerer starts inference with
+the identity policy.
+
+F13: `dev/PROVENANCE.md` records that three `group-boundary-*` pairs pass
+unchanged at 2b4a6e2, so they pin boundary semantics and not the
+settlement.
+
+F12: `dev/PROVENANCE.md` states the SUITE-CHECK positive floor as 19,
+which agrees with `dev/gates.sh`.
+
+F2: `surface/infer.ml` keeps the D-B-41 citation above `seen_ty` and
+adds that a group policy settles the body only.
+
+F14: two deep fixtures join the corpus,
+`test/vm/group-result-four-member.bk` for a four-member rotation and
+`test/vm/group-result-record-of-function.bk` for a record field that
+holds a reader;  `main_floor` becomes 134.
+
+F5: `dev/STAGE-D-STATUS.md` records that
+`test/vm/layout-generic-identity-variant-annotation.bk` does not fail the
+retag mutant, because no annotated identity program emits a retag.

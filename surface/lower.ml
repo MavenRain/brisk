@@ -260,6 +260,17 @@ let arrow_parts (t : Types.ty) : (Types.ty * Types.ty) option =
   | Types.Var _ | Types.Con (_, _) | Types.Record _ | Types.Variant _
   | Types.Code (_, _) -> None
 
+(* Stable group layouts preserve duplicate occurrences and unknown variant tails. *)
+let rec settle_layout (t : Types.ty) : Types.ty =
+  match t with
+  | Types.Arrow (a, m, r, b) -> Types.Arrow (settle_layout a, m, r, settle_layout b)
+  | Types.Record r when not (Row.is_open r) -> Types.Record (settle_row r)
+  | Types.Variant r -> Types.Variant (settle_row r)
+  | Types.Var _ | Types.Con _ | Types.Record _ | Types.Code _ -> t
+and settle_row (r : Types.row) : Types.row =
+  Row.of_fields (List.map (fun (l, t) -> l, settle_layout t)
+    (List.stable_sort (fun (l, _) (m, _) -> String.compare (Label.to_string l) (Label.to_string m)) (Row.fields r))) (Row.tail_of r)
+
 (* Physical rows retain source order, including repeated labels. *)
 let numbered (fs : (Label.t * Types.ty) list) : (Label.t * int * Types.ty) list =
   snd (List.fold_left (fun (seen, out) (l, t) ->
@@ -297,7 +308,7 @@ let specialize (src : Types.ty) (dst : Types.ty) : (Types.ty * Types.ty, Error.t
   let ids = List.map (fun v -> v.Types.tv_id) (a.Infer.tvs @ b.Infer.tvs)
     @ List.map (fun v -> v.Types.rv_id) (a.Infer.rvs @ b.Infer.rvs) in
   let store = { Subst.empty with next = 1 + List.fold_left max 0 ids } in
-  let src, st = Infer.instantiate { Infer.start with store }
+  let src, st = Infer.instantiate { Infer.start with store; layout = settle_layout }
     (Types.Forall (a.Infer.tvs, a.Infer.rvs, src)) in
   let* st = Infer.unify_at st src dst in
   Ok (fst (Infer.zonk st src), fst (Infer.zonk st dst))
@@ -619,22 +630,15 @@ and lower_let (c : ctx) (p : Ast.pat) (v : Ast.expr) (body : ctx -> (Ir.t, Error
 and lower_fix (c : ctx) (bs : Ast.bind list)
     (k : ctx -> (Ir.t, Error.t) result) : (Ir.t, Error.t) result =
   let names = List.map fst bs in
-  let touched =
-    without
-      (List.concat_map (fun ((_, v) : Ast.bind) -> free v) bs)
-      names
-  in
+  let touched = without (List.concat_map (fun ((_, v) : Ast.bind) -> free v) bs) names in
   let (ds, slots) = capture c touched in
   let* (_, env1, _, st) = Infer.infer_group c.st c.env bs in
   let cm = List.fold_left (fun (a : ctx) (g : Ident.t) ->
     poly_add a g (Option.fold ~none:[] ~some:(fun sc -> poly_type (Types.body_of sc)) (Env.lookup g env1))) c names in
   let c0 = { cm with env = env1; st } in
-  let* defs =
-    map_result
-      (fun ((g, v) : Ast.bind) ->
-        Result.map (fun (m : Ir.t) -> (ds, m)) (lower_member c0 g v names slots))
-      bs
-  in
+  let* defs = map_result (fun ((g, v) : Ast.bind) ->
+    let* member = lower_member c0 g v names slots in
+    Ok (ds, member)) bs in
   let* body = k { cm with frame = SGroup names :: cm.frame; env = env1; st } in
   Ok (Ir.IFix (defs, body))
 
@@ -732,17 +736,12 @@ let rec lower_decls (c : ctx) (ds : Ast.decl list) : (Ir.t, Error.t) result =
   match ds with
   | [] -> need (look c main_name) "the program declares no main"
   | Ast.DLet (f, e) :: more ->
-      let* (pairs, _, _, st) = Infer.infer_bound c.st c.env (Ast.PVar f) e in
-      let* v = lower_val c e in
-      let* ls = poly_of c e in
-      let c1 = poly_add { (push c (SVal f)) with env = Infer.extend_sc c.env pairs; st } f ls in
-      let* rest = lower_decls { c1 with records = (f, record_of c e) :: c1.records } more in
-      Ok (Ir.ILet (v, rest))
+      lower_let c (Ast.PVar f) e (fun c1 -> lower_decls c1 more)
   | Ast.DLetRec bs :: more ->
       lower_fix c bs (fun (c1 : ctx) -> lower_decls c1 more)
   | Ast.DResource (_, _) :: _ | Ast.DEffect (_, _) :: _ -> refuse "M1"
 
 let lower (_o : Infer.outcome) (p : Ast.prog) : (Ir.t, Error.t) result =
   lower_decls
-    { frame = []; env = Env.initial; st = Infer.start; poly = []; records = []; serial = 0 }
+    { frame = []; env = Env.initial; st = { Infer.start with layout = settle_layout }; poly = []; records = []; serial = 0 }
     p

@@ -2,7 +2,8 @@
 
 Stage D remains in progress.  The reader continuation starts at `674f89c`,
 the stack-slot repair at `3259c4d`, layout reconciliation at `e3b42be`,
-and tail-call preservation at `42dd749`.
+tail-call preservation at `42dd749`, and recursive group layout settlement
+at `2b4a6e2`.
 The known closed-record and contextual-variant reproductions now pass.
 The Stage E driver and speed gates remain unimplemented.
 
@@ -48,6 +49,10 @@ applications, reader adapters, mutual recursion and evaluation order.
 One pair promotes the former `open-higher-order-domain` refusal: a whole
 call now determines the reader's domain and supplies its offsets.
 
+The retag mutant of the variant conversion fails twenty-one fixtures.
+`test/vm/layout-generic-identity-variant-annotation.bk` is not one of
+them, so it pins the annotated identity path and not the retag.
+
 ## Reader and stack conventions
 
 Result layouts now pass into conditionals, matches, local and recursive
@@ -60,13 +65,24 @@ mutual recursion.  An additional semantic fixture requires exact output
 from effectful field expressions.  Source evaluation order
 and necessary conversions remain intact.  Calls between different actual
 result conventions can still require work after the call and grow the stack.
-An annotation on a recursive member body keeps a conversion after the call.
-The program reaches the ceiling of 65536 slots at depth 100000, although
-the annotation names the layout that the consumer reads.
-A recursive group of three members whose base records hold three different field orders also keeps a conversion after the call.
-The stack grows about two slots for each call.
-Each member takes its own result layout.  The group does not settle one layout.
-The eleven named tail fixtures of `dev/gates.sh` hold neither shape, so the ceiling of 64 slots does not cover them.
+
+Recursive groups now settle supported layouts to stable label order during
+lowering.  Closed records, known variant tags, nested payloads and function
+arguments and results share that convention across members.  Duplicate
+occurrences retain their relative order and variant tails remain intact.
+Open records retain their entire original type to preserve reader offsets.
+Source checking still prints the original inferred row order.  The policy
+also applies when inferring groups inside aliases and local bindings, so
+their metadata agrees with the emitted values.
+
+Nine new deep regressions cover the previously overflowing annotated body
+and three-member group, nested variants with distinct or shared tags,
+duplicate labels, curried readers, returned reader closures and effects.
+Each stays below the existing 64-slot ceiling at 100000 or more calls.
+Nine semantic boundary fixtures retain alias layouts, generic values,
+extra variant tags, heterogeneous duplicates, captured type variables and
+nested payloads of open record readers.  The source checker has a new
+positive fixture that pins its unchanged row order.
 
 Each source parameter has its own leading record offsets.  Aliases and
 partial applications retain the remaining signature.  Captures carry
@@ -117,14 +133,14 @@ transport through records and returned conditional values remains
 outside the supported signature paths.  Destructuring and residual
 variant patterns also retain their existing lowering refusals.
 
-The gate requires 114 executable programs, ten exact lowering refusals,
+The gate requires 134 executable programs, ten exact lowering refusals,
 all 22 instructions emitted and executed, and at most 64 slots in the
-100,000-call tail recursion fixture and each of the ten new named deep
-result-layout fixtures.  The counted core is 1998/2000 lines and the
-machine is 795/800.  Removing the redundant `lower_body` wrapper and
-reusing the existing option-to-result helper keep this change within the
-existing bounds; no logic moved outside the counted files and no cap or
-path changed.
+100,000-call tail recursion fixture and each of twenty-two named deep
+result-layout fixtures.  The checker requires 19 positive fixtures and
+36 negative twins.  The counted core is 2000/2000 lines and the machine
+is 795/800.  Declaration lowering reuses `lower_let` instead of duplicating
+its binding setup, keeping this change within the existing bounds.
+No logic moved outside the counted files and no cap or path changed.
 
 `Value.nth` retains its guarded constant-time array read.  Effect frames
 retain the M1 refusal.  Fixture file reads still assume readable regular

@@ -1,0 +1,8 @@
+(* Two readers each need both label offsets while three result layouts rotate. *)
+let rec first count r s = if count == 0 then { c = 1, b = r.a + r.b + s.a + s.b, a = 1 } else second (count - 1) r s
+and second count r s = if count == 0 then { a = 2, c = 2, b = r.a + r.b + s.a + s.b + 1 } else third (count - 1) r s
+and third count r s = if count == 0 then { b = r.a + r.b + s.a + s.b + 2, a = 3, c = 3 } else first (count - 1) r s
+let read r = (r : { a : int, b : int, c : int }).b
+let x0 = print_int (read (first 100000 { pad = 0, b = 11, a = 3 } { a = 12, pad = 0, b = 4 }))
+let x1 = print_int (read (first 100001 { a = 3, pad = 0, b = 11 } { b = 4, a = 12, pad = 0 }))
+let main = print_int (read (first 100002 { b = 11, a = 3, pad = 0 } { pad = 0, b = 4, a = 12 }))

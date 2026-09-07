@@ -1,0 +1,7 @@
+let rec first count = if count == 0 then < a 7 > else second (count - 1)
+and second count = if count == 0 then < a ^ 1 true > else third (count - 1)
+and third count = if count == 0 then < z 9 > else first (count - 1)
+let read v = match (v : < extra : int, z : int, a : int, middle : int, a : bool >) with | < extra n > -> n + 100 | < z n > -> n | < a n > -> n | < middle n > -> n + 200 | < a ^ 1 yes > -> if yes then 1 else 0
+let x = print_int (read (first 3))
+let y = print_int (read (first 4))
+let main = print_int (read (first 5))

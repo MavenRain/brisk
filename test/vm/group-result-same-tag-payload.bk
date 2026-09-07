@@ -1,0 +1,8 @@
+(* One tag exposes alternate nested payload orders across recursive members. *)
+let rec first count = if count == 0 then < item { c = 1, payload = { y = 7, x = 1 }, a = 1 } > else second (count - 1)
+and second count = if count == 0 then < item { a = 2, c = 2, payload = { x = 2, y = 8 } } > else third (count - 1)
+and third count = if count == 0 then < item { payload = { y = 9, x = 3 }, a = 3, c = 3 } > else first (count - 1)
+let read v = match (v : < item : { a : int, payload : { x : int, y : int }, c : int } >) with | < item r > -> r.payload.y
+let x0 = print_int (read (first 100000))
+let x1 = print_int (read (first 100001))
+let main = print_int (read (first 100002))

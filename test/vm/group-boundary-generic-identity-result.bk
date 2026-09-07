@@ -1,0 +1,9 @@
+let rec first count x = if count == 0 then x else second (count - 1) x
+and second count x = if count == 0 then x else first (count - 1) x
+let identity = first
+let a = identity 3 { b = 7, a = 1 }
+let b = identity 4 { a = 2, b = 8 }
+let c = identity 5 (fun r -> (r : { b : int, a : int }).b + 9)
+let x = print_int a.b
+let y = print_int b.b
+let main = print_int (c { a = 1, b = 0 })

@@ -1,0 +1,9 @@
+let pack x n = let rec first count = if count == 0 then { z = 1, b = x, a = 2 } else second (count - 1)
+and second count = if count == 0 then { b = x, a = 3, z = 4 } else third (count - 1)
+and third count = if count == 0 then { a = 5, z = 6, b = x } else first (count - 1)
+in let alias = first in alias n
+let read r = ((r : { b : { a : bool, b : int }, a : int, z : int }).b).b
+let x = print_int (read (pack { b = 7, a = true } 100002))
+let y = print_int (read (pack { a = false, b = 8 } 100003))
+let r = pack (fun r -> (r : { b : int, a : bool }).b) 100004
+let main = print_int (r.b { a = true, b = 9 })

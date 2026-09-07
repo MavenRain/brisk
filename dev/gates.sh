@@ -185,7 +185,7 @@ leg_parse () {
 # alone and holds that run at exit 0 (D-B-48).
 leg_suite_check () {
   local out code line n p q
-  local pos_floor=18 neg_floor=36
+  local pos_floor=19 neg_floor=36
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
   if [[ $code -ne 0 || -n $out ]]; then
@@ -235,7 +235,7 @@ leg_suite_check () {
 # masking a removed regression.
 leg_suite_vm () {
   local out code line n r s k m census stack peak fixture tail_fixture
-  local main_floor=114
+  local main_floor=134
   local tail_files=(
     $ROOT/test/vm/tailrec.bk
     $ROOT/test/vm/tail-record-if.bk
@@ -248,6 +248,18 @@ leg_suite_vm () {
     $ROOT/test/vm/tail-curried-nested-record.bk
     $ROOT/test/vm/tail-curried-readers.bk
     $ROOT/test/vm/tail-curried-annotation.bk
+    $ROOT/test/vm/group-result-annotated-let.bk
+    $ROOT/test/vm/group-result-three-record.bk
+    $ROOT/test/vm/group-result-three-annotated.bk
+    $ROOT/test/vm/group-result-nested-variant.bk
+    $ROOT/test/vm/group-result-same-tag-payload.bk
+    $ROOT/test/vm/group-result-duplicate-labels.bk
+    $ROOT/test/vm/group-result-curried-readers.bk
+    $ROOT/test/vm/group-result-reader-closure.bk
+    $ROOT/test/vm/group-result-effects.bk
+    $ROOT/test/vm/group-result-four-member.bk
+    $ROOT/test/vm/group-result-record-of-function.bk
+    $ROOT/test/vm/group-boundary-captured-outer-typevar.bk
   )
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
@@ -257,7 +269,19 @@ leg_suite_vm () {
     print -r -- "FAIL SUITE-VM"
     return 1
   fi
-  for fixture in $tail_files $ROOT/test/vm/layout-effects.bk; do
+  local named_files=(
+    $tail_files
+    $ROOT/test/vm/layout-effects.bk
+    $ROOT/test/vm/group-boundary-nested-letrec-record-alias.bk
+    $ROOT/test/vm/group-boundary-nested-letrec-function-alias.bk
+    $ROOT/test/vm/group-boundary-generic-identity-result.bk
+    $ROOT/test/vm/group-boundary-variant-extra-tags.bk
+    $ROOT/test/vm/group-boundary-generic-variant-payload.bk
+    $ROOT/test/vm/group-boundary-heterogeneous-record-duplicates.bk
+    $ROOT/test/vm/group-boundary-heterogeneous-variant-duplicates.bk
+    $ROOT/test/vm/group-boundary-open-reader-nested-fixed.bk
+  )
+  for fixture in $named_files; do
     if [[ ! -f $fixture || ! -f ${fixture:r}.out ]]; then
       print -r -- "FAIL SUITE-VM named fixture or golden missing: $fixture"
       return 1

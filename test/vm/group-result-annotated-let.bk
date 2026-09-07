@@ -1,0 +1,6 @@
+(* An annotation wraps an If arm whose let holds the recursive call. *)
+let rec first count = ((if count == 0 then { b = 7, a = 1 } else (let next = count - 1 in second next)) : { a : int, b : int })
+and second count = ((if count == 0 then { a = 2, b = 8 } else (let next = count - 1 in first next)) : { a : int, b : int })
+let read r = (r : { a : int, b : int }).b
+let shown = print_int (read (first 100000))
+let main = print_int (read (first 100001))

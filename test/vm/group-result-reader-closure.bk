@@ -1,0 +1,8 @@
+(* Returning reader closures keeps their argument offsets and record results. *)
+let rec first count = if count == 0 then (fun r -> { c = (r : { c : int, b : int, a : int }).c, b = r.b + 7, a = r.a }) else second (count - 1)
+and second count = if count == 0 then (fun r -> { a = (r : { a : int, c : int, b : int }).a, c = r.c, b = r.b + 8 }) else third (count - 1)
+and third count = if count == 0 then (fun r -> { b = (r : { b : int, a : int, c : int }).b + 9, a = r.a, c = r.c }) else first (count - 1)
+let read f = ((f : { a : int, b : int, c : int } -> { a : int, b : int, c : int }) { a = 1, b = 0, c = 2 }).b
+let x0 = print_int (read (first 100000))
+let x1 = print_int (read (first 100001))
+let main = print_int (read (first 100002))

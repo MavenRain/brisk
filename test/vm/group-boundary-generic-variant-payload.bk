@@ -1,0 +1,5 @@
+let rec first count x = if count == 0 then < z x > else second (count - 1) x
+and second count x = if count == 0 then < a x > else first (count - 1) x
+let read v = match (v : < extra : int, z : { a : int, b : int }, a : { b : int, a : int } >) with | < extra x > -> x + 100 | < z r > -> r.b | < a r > -> r.b
+let x = print_int (read (first 3 { b = 7, a = 1 }))
+let main = print_int (read (first 4 { a = 2, b = 8 }))

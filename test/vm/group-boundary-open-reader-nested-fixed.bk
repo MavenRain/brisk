@@ -1,0 +1,7 @@
+let rec first count r = if count == 0 then { z = 1, b = (r.payload : { z : int, b : int, a : int }).b + 7, a = 2 } else second (count - 1) r
+and second count r = if count == 0 then { b = (r.payload : { z : int, b : int, a : int }).b + 8, a = 3, z = 4 } else third (count - 1) r
+and third count r = if count == 0 then { a = 5, z = 6, b = (r.payload : { z : int, b : int, a : int }).b + 9 } else first (count - 1) r
+let read r = (r : { z : int, b : int, a : int }).b
+let x = print_int (read (first 3 { extra = 92, payload = { a = 91, z = 93, b = 0 } }))
+let y = print_int (read (first 4 { payload = { b = 0, a = 91, z = 93 }, extra = 92 }))
+let main = print_int (read (first 5 { payload = { z = 93, b = 0, a = 91 }, extra = 92 }))

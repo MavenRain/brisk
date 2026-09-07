@@ -33,7 +33,7 @@ listed in SPEC.md section 10.
 
 The earlier harness rows describe their introduction.  The current
 SUITE-CHECK leg reads all positive fixtures and negative twins, with
-floors of 18 and 36.  The trusted core list names `surface/infer.ml`
+floors of 19 and 36.  The trusted core list names `surface/infer.ml`
 and `surface/lower.ml`, because both modules read the surface AST.
 
 | File | Source and lines | Kind | What it does |
@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 114 programs with their goldens, ten exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It also names `tailrec` and the eleven deep result-layout fixtures, checks that each named source and its golden exist, and holds each named source at a maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 132 programs with their goldens, ten exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and nineteen deep result-layout fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order and nine group-boundary pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -273,3 +273,50 @@ result.  The IR and all VM files retain their previous contents.
 | `test/vm/layout-callback-reader-two-labels.bk` and `.out` | none | NEW | A closed call site supplies two reader offset constants for a callback that reads two labels of a three field record.  The golden `43` observes both constants, because `r.n` is 40 and `r.m` is 3.  A zeroed offset constant changes the output. |
 | `test/vm/let-shadow-reader.bk` and `.out` | none | NEW | A shadowing local rebinding reads its record metadata from the outer context.  Hand derived golden `5` with no final newline. |
 | `test/lower-neg/layout-open-restriction-read.bk` and `.err` | none | NEW | Refuses a restriction of an open row, which has no known offset.  The member binds the restriction and reads a different label through its reader, so the program reaches the open-row guard of `offset_of` first.  It is the one fixture that does.  A mutant that deletes that guard accepts the program, and then this fixture fails alone.  The diagnostic bytes equal those of `layout-open-record-return.err`. |
+
+### Recursive group layout continuation, 2026-09-07
+
+`surface/infer.ml` carries a layout policy in its inference state and
+applies it to generalized recursive group schemes.  Ordinary source checking
+uses identity.  `surface/lower.ml` supplies stable label ordering for
+closed records and known variant prefixes, recurses through payloads and
+function types, and preserves variant tails and complete open record
+types.  These are new Brisk changes.  Top-level ordinary bindings reuse
+the existing local binding path.  No IR or VM source changes.
+
+The eleven `group-result-*` pairs and `group-boundary-captured-outer-typevar`
+each run at least 100000 recursive calls and have an individual 64-slot
+gate bound.  Three-member fixtures observe
+all three members with adjacent depths.  The nine `group-boundary-*`
+pairs cover metadata and semantic boundaries.  Three of these pairs pass
+unchanged at 2b4a6e2:  group-boundary-generic-identity-result,
+group-boundary-generic-variant-payload and
+group-boundary-heterogeneous-variant-duplicates.  They keep the same
+output and the same stack peak before and after this change, so they pin
+boundary semantics and not the settlement.  Every VM golden below is
+hand derived exact stdout with no final newline.  SUITE-CHECK now requires
+19 positives and retains its 36 negative twins.
+
+| Files | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/group-result-annotated-let.bk` and `.out` | none | NEW | Annotated member bodies with local lets, reproducing F17.  Golden `78`. |
+| `test/vm/group-result-three-record.bk` and `.out` | none | NEW | Three members with three record orders, reproducing F17.  Golden `897`. |
+| `test/vm/group-result-three-annotated.bk` and `.out` | none | NEW | Three annotated members with three record orders.  Golden `897`. |
+| `test/vm/group-result-nested-variant.bk` and `.out` | none | NEW | Distinct variant tags with nested records.  Golden `897`. |
+| `test/vm/group-result-same-tag-payload.bk` and `.out` | none | NEW | A shared variant tag with alternate nested record orders.  Golden `897`. |
+| `test/vm/group-result-duplicate-labels.bk` and `.out` | none | NEW | Duplicate record occurrences retain their order.  Golden `849573`. |
+| `test/vm/group-result-curried-readers.bk` and `.out` | none | NEW | Curried open readers retain parameter offsets.  Golden `313230`. |
+| `test/vm/group-result-reader-closure.bk` and `.out` | none | NEW | Returned reader closures retain their signature.  Golden `897`. |
+| `test/vm/group-result-effects.bk` and `.out` | none | NEW | Source field effects run once in order.  Golden `348895691727`. |
+| `test/vm/group-result-four-member.bk` and `.out` | none | NEW | Four members rotate four record orders at adjacent depths.  Golden `6789`. |
+| `test/vm/group-result-record-of-function.bk` and `.out` | none | NEW | Each member returns a record whose field holds a reader.  Golden `78`. |
+| `test/vm/group-boundary-nested-letrec-record-alias.bk` and `.out` | none | NEW | A record alias contains a local recursive group.  Golden `789`. |
+| `test/vm/group-boundary-nested-letrec-function-alias.bk` and `.out` | none | NEW | A function alias contains a local recursive group.  Golden `789`. |
+| `test/vm/group-boundary-generic-identity-result.bk` and `.out` | none | NEW | A generic identity transports a group result.  Golden `789`. |
+| `test/vm/group-boundary-variant-extra-tags.bk` and `.out` | none | NEW | A consumer extends a returned variant's unknown tail.  Golden `789`. |
+| `test/vm/group-boundary-generic-variant-payload.bk` and `.out` | none | NEW | A returned variant keeps its generic payload.  Golden `78`. |
+| `test/vm/group-boundary-heterogeneous-record-duplicates.bk` and `.out` | none | NEW | Duplicate record labels carry different payload types.  Golden `718091`. |
+| `test/vm/group-boundary-heterogeneous-variant-duplicates.bk` and `.out` | none | NEW | Duplicate variant tags carry different payload types alongside extra tags.  Golden `719`. |
+| `test/vm/group-boundary-captured-outer-typevar.bk` and `.out` | none | NEW | Recursive members capture an outer generic value.  Golden `789`. |
+| `test/vm/group-boundary-open-reader-nested-fixed.bk` and `.out` | none | NEW | An open record reader preserves a nested payload's fixed order.  Golden `789`. |
+| `test/pos/recursive-row-order.bk`, `.fmt`, `.scheme`, `.inst` and `.over` | none | NEW | Source checking retains `int -> { b : int, a : bool }`, accepts reordered instantiation and rejects over-generalization. |

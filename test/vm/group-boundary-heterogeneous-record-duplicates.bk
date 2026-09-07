@@ -1,0 +1,7 @@
+let rec first count = if count == 0 then { z = 42, a = 7, a = true } else second (count - 1)
+and second count = if count == 0 then { a = 8, z = 41, a = false } else third (count - 1)
+and third count = if count == 0 then { a = 9, a = true, z = 40 } else first (count - 1)
+let read r = let aligned = (r : { a : int, z : int, a : bool }) in let shown = print_int aligned.a in let rest = { aligned - a } in print_int (if rest.a then 1 else 0)
+let x = read (first 3)
+let y = read (first 4)
+let main = read (first 5)

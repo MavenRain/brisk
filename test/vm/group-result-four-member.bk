@@ -1,0 +1,10 @@
+(* Four members rotate four record orders through 100000 tail calls. *)
+let rec first count = if count == 0 then { d = 1, b = 6, a = 1, c = 1 } else second (count - 1)
+and second count = if count == 0 then { a = 2, c = 2, b = 7, d = 2 } else third (count - 1)
+and third count = if count == 0 then { b = 8, d = 3, c = 3, a = 3 } else fourth (count - 1)
+and fourth count = if count == 0 then { c = 4, a = 4, d = 4, b = 9 } else first (count - 1)
+let read r = (r : { a : int, b : int, c : int, d : int }).b
+let w = print_int (read (first 100000))
+let x = print_int (read (first 100001))
+let y = print_int (read (first 100002))
+let main = print_int (read (first 100003))

@@ -1,0 +1,9 @@
+(* Settlement preserves each base literal's left-to-right, single evaluation. *)
+let mark n = let shown = print_int n in n
+let rec first count = if count == 0 then { c = mark 1, b = mark 7, a = mark 2 } else second (count - 1)
+and second count = if count == 0 then { a = mark 3, c = mark 4, b = mark 8 } else third (count - 1)
+and third count = if count == 0 then { b = mark 9, a = mark 5, c = mark 6 } else first (count - 1)
+let read r = (r : { a : int, b : int, c : int }).b
+let x0 = print_int (read (first 100000))
+let x1 = print_int (read (first 100001))
+let main = print_int (read (first 100002))

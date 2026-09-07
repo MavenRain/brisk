@@ -660,3 +660,40 @@ The final lowerer SHA256 is
 `d987b4b3513e491d0bb70ec4165d18db6a8436b0d1de29ac585367f3b039cf2e`.
 Exact source diffs, file hashes, command arguments, exits and outputs
 are retained under `/Users/oobi/Documents/gpt8/brisk-tail-evidence/mutations`.
+
+### Recursive group layout controls, 2026-09-07
+
+The saved executable from `2b4a6e2` reaches the 65536-slot ceiling on all
+eight initial deep group fixtures.  Shallow versions of those same eight
+match their goldens.  The supplemental same-tag nested payload fixture
+also reaches the ceiling on that baseline.  The final executable passes
+all nine deep cases with a separate 64-slot bound for each.
+
+Each mutation below builds successfully in its own source copy.  The
+unchanged source passes each focused control before the corresponding
+mutant runs.  Failures follow successful parsing and source checking.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| GL-M1: disable the layout policy at `Lower.lower` | `group-result-annotated-let`, `group-result-three-record` | Both reach the 65536-slot stack ceiling and exit one. |
+| GL-M2: omit recursive payload settlement in `settle_row` | `group-result-same-tag-payload` | Reaches the 65536-slot stack ceiling and exits one. |
+| GL-M3: replace tail-preserving `Row.of_fields` with `Row.closed` | Wider returned variant, shallow and deep | Both fail lowering with `the row has no label extra` and exit one. |
+
+GL-M2 survives the initial distinct-tag nested variant fixture: each
+member returns a different constructor, so the fixture does not require
+settling the layout of a shared tag's payload.  The supplemental fixture
+uses one tag across three members with alternate nested record orders.
+Its fixed control prints `897` at depths 100000, 100001 and 100002; the
+mutant overflows.  The original surviving control is retained in the
+evidence, and this stronger case is now a named stack-bound fixture.
+
+Nine boundary fixtures pass for local recursive aliases, generic values,
+extra tags, heterogeneous duplicate labels, captured type variables and
+fixed nested payloads in open readers.  Source checking independently
+retains `int -> { b : int, a : bool }`, accepts two instances and rejects
+one over-generalization.  These checks guard the identity source policy
+and the metadata passed between ordinary and recursive binding paths.
+
+Exact control and mutation sources, diffs, hashes, commands, exits and
+logs are under `/Users/oobi/Documents/gpt8/brisk-groups-evidence/mutations`.
+The baseline and full gate logs are in its parent evidence directory.

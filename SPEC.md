@@ -538,13 +538,24 @@ Recursive members normalize results to their shared group signatures.
 Declaration environments advance in source order and retain fresh-type
 state, so later bindings cannot overwrite an earlier value's layout.
 
+For lowering, recursive group schemes settle closed record fields and
+known variant tags in label order.  Stable sorting preserves duplicate
+occurrences.  Settlement recurses through field payloads and arrow
+arguments and results; variant row tails remain intact.  Open records
+retain their complete original type, including nested payload orders,
+so existing reader offsets still describe their values.  Type variables,
+opaque constructors, code types and effect rows remain unchanged.
+Every group inference during lowering applies this convention, including
+groups inside aliases and local bindings.  Ordinary source checking uses
+the identity convention and retains the source scheme's row order.
+
 Lowering passes the consumer's final result layout into conditional arms,
 literal and variant match arms, local binding bodies, recursive binding
 bodies and immediately nested curried lambdas.  Intermediate annotations
 remain checked, but their layout conversions can compose into the final
 target.  This avoids rebuilding a result after a recursive call whose
 declared result layout already agrees with the consumer.  Field expressions
-retain source evaluation order and run once.  A call between genuinely
+retain source evaluation order and run once.  A call between
 different result layouts still needs a conversion after it returns, and
 this change does not make that call use constant stack space.
 
@@ -643,7 +654,7 @@ The VM is a tail-recursive OCaml walk over the instruction array with
 one accumulator and an explicit value stack.  Tail position passes into
 lambda bodies, conditional arms, match arms and let bodies.  A call in
 tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
-recursion fixture and ten named result-layout regressions make at least
+recursion fixture and twenty-two named result-layout regressions make at least
 100,000 calls.  SUITE-VM requires each fixture and its golden to exist and
 each maximum stack use to stay at or below 64 slots.
 
@@ -686,7 +697,7 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-114 programs, no failures and consistent counts.  It also requires
+134 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
 The same gate runs at least ten `test/lower-neg` programs through
 `test/refusals.exe`, and the tree ships ten.  Each must parse and type

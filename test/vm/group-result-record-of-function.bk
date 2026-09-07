@@ -1,0 +1,6 @@
+(* Each member returns a record whose middle field holds a reader. *)
+let rec first count = if count == 0 then { z = 1, f = (fun r -> (r : { b : int, a : int }).b + 7), a = 2 } else second (count - 1)
+and second count = if count == 0 then { f = (fun r -> (r : { a : int, b : int }).b + 8), a = 3, z = 4 } else first (count - 1)
+let read r = (r : { a : int, f : { a : int, b : int } -> int, z : int }).f
+let x = print_int ((read (first 100000)) { a = 1, b = 0 })
+let main = print_int ((read (first 100001)) { b = 0, a = 1 })

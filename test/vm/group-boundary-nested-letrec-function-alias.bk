@@ -1,0 +1,8 @@
+let mk n = let rec first count = if count == 0 then (fun r -> { z = (r : { z : int, b : int, a : int }).z, b = r.b + 7, a = r.a }) else second (count - 1)
+and second count = if count == 0 then (fun r -> { b = (r : { b : int, a : int, z : int }).b + 8, a = r.a, z = r.z }) else third (count - 1)
+and third count = if count == 0 then (fun r -> { a = (r : { a : int, z : int, b : int }).a, z = r.z, b = r.b + 9 }) else first (count - 1)
+in let alias = first in alias n
+let read f = ((f : { b : int, a : int, z : int } -> { a : int, z : int, b : int }) { z = 91, a = 92, b = 0 }).b
+let x = print_int (read (mk 3))
+let y = print_int (read (mk 4))
+let main = print_int (read (mk 5))

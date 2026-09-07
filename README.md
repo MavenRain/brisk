@@ -12,6 +12,8 @@ currying, partial application, captures and recursive groups.  Unsupported
 open-row transport is refused before emission.
 Result layouts pass into control-flow arms and curried bodies so redundant
 conversions preserve tail calls when caller and callee result layouts agree.
+Recursive groups settle a common order for supported record and variant
+layouts, including annotated members and nested payloads.
 The assembler preserves lexical bindings and captures across temporary
 argument pushes, including nested lets, matches and recursive groups.
 The driver arrives at Stage E.  The grammar,
@@ -60,15 +62,15 @@ zsh dev/gates.sh --leg trusted-lines
 
 The battery through Stage D has seven legs.  BUILD holds `dune build @all` clean.
 HOUSE holds the house rules of the plan section 11 over lib, surface and
-vm, plus test.  PARSE holds parse, print, parse and print equal on its 45
-fixtures.  SUITE-CHECK requires at least 18 positive fixtures and 36
+vm, plus test.  PARSE holds parse, print, parse and print equal on its 46
+fixtures.  SUITE-CHECK requires at least 19 positive fixtures and 36
 negative twins.  SUITE-VM checks the stdout goldens of every program with
-`main` in `test/vm` and `test/pos`, with a floor of 114 programs.  It
+`main` in `test/vm` and `test/pos`, with a floor of 134 programs.  It
 requires at least ten lowering refusals to parse and check successfully
 before matching their exact diagnostic goldens;  the tree ships ten.
 SUITE-VM also
 requires all 22 instructions to be emitted and executed, and the
-100,000-call tail recursion fixture and ten named result-layout
+100,000-call tail recursion fixture and twenty-two named result-layout
 regressions to use at most 64 stack slots each.
 TRUSTED-LINES requires all counted files to exist and holds the six core
 files at 2,000 lines and the three machine files at 800.  DENOMINATORS

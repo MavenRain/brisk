@@ -1,0 +1,8 @@
+let mk n = let rec first count = if count == 0 then { z = 1, b = 7, a = 2 } else second (count - 1)
+and second count = if count == 0 then { b = 8, a = 3, z = 4 } else third (count - 1)
+and third count = if count == 0 then { a = 5, z = 6, b = 9 } else first (count - 1)
+in let alias = first in let again = alias in again n
+let read r = (r : { z : int, a : int, b : int }).b
+let x = print_int (read (mk 3))
+let y = print_int (read (mk 4))
+let main = print_int (read (mk 5))

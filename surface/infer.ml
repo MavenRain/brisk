@@ -2,9 +2,10 @@
    Lets generalize syntactic values; all M0 effects are empty.
    Ast has no spans, so diagnostics use the common 1:1 point. *)
 
-type state = { store : Subst.t;  level : Level.t }
+(* Source checking preserves layouts; lowering supplies its recursive convention. *)
+type state = { store : Subst.t; level : Level.t; layout : Types.ty -> Types.ty }
 
-let start : state = { store = Subst.empty;  level = Level.outermost }
+let start : state = { store = Subst.empty; level = Level.outermost; layout = Fun.id }
 
 let nowhere : Error.span = Error.point (Error.pos 1 1)
 
@@ -145,8 +146,8 @@ let add_rv (acc : seen) (v : Types.rowvar) : seen =
     acc
   else { acc with rvs = acc.rvs @ [ v ] }
 
-(* The variables of a zonked type, in order of first appearance, which is
-   the order the printed forall prefix takes (D-B-41). *)
+(* Zonked type variables in first appearance order, which is the printed
+   forall prefix order (D-B-41).  A group policy settles the body only. *)
 let rec seen_ty (acc : seen) (t : Types.ty) : seen =
   match t with
   | Types.Var v -> add_tv acc v
@@ -691,6 +692,8 @@ and infer_group (st : state) (env : Env.t) (bs : Ast.bind list) :
   let env1 = extend env slots in
   let* (u, st2) = infer_binds st1 env1 slots bs in
   let (pairs, st3) = close_binds { st2 with level = outer } outer true slots in
+  let pairs = List.map (fun (x, Types.Forall (vs, rs, t)) ->
+    x, Types.Forall (vs, rs, st3.layout t)) pairs in
   Ok (pairs, extend_sc env pairs, Usage.scale (forget slots u), st3)
 
 and rec_slots (st : state) (bs : Ast.bind list) :

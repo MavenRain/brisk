@@ -1,0 +1,9 @@
+let rec first count = if count == 0 then < z { z = 1, b = 7, a = 2 } > else second (count - 1)
+and second count = if count == 0 then < m { b = 8, a = 3, z = 4 } > else third (count - 1)
+and third count = if count == 0 then < a { a = 5, z = 6, b = 9 } > else first (count - 1)
+let alias = first
+let read v = match (v : < extra : int, z : { b : int, a : int, z : int }, middle : int, m : { a : int, z : int, b : int }, a : { z : int, b : int, a : int } >) with
+| < extra x > -> x + 100 | < z r > -> r.b | < middle x > -> x + 200 | < m r > -> r.b | < a r > -> r.b
+let x = print_int (read (alias 3))
+let y = print_int (read (alias 4))
+let main = print_int (read (alias 5))
