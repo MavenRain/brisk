@@ -1,0 +1,7 @@
+(* ExtRec:  extension prepends one field, so the new field reads at 0 *)
+let base = { b = 2 }
+let r = { a = 1 | base }
+let x = print_int r.a
+let y = print_newline ()
+let z = print_int r.b
+let main = print_newline ()

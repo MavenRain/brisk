@@ -1,0 +1,3 @@
+let get r = r.n
+let a = let alias = get in print_int (alias { pad = 9, n = 7 })
+let main = print_newline ()

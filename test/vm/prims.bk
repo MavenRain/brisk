@@ -1,0 +1,7 @@
+(* the primitive names of D-D-27 beside the operators of D-A-2 *)
+let a = print_int (string_length "abc")
+let b = print_int (string_compare "a" "b")
+let c = print_int (int_compare 5 5)
+let d = print_int ((17 % 5) + (7 / 2))
+let e = print_string "|"
+let main = print_newline ()

@@ -1,0 +1,4 @@
+(* a variant block that carries a string payload, the first tag taken *)
+let f v = match (v : < p : string, p : int >) with | < p s > -> s | < p ^ 1 n > -> "n"
+let a = print_string (f (< p "hi" >))
+let main = print_newline ()

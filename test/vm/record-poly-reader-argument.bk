@@ -1,0 +1,7 @@
+let get r = r.n
+let alias = get
+let apply reader = reader { pad = 9, n = 7 }
+let a = print_int (apply alias)
+let b = print_newline ()
+let c = print_int (apply (fun r -> r.n))
+let main = print_newline ()

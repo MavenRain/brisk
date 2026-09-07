@@ -1,0 +1,4 @@
+(* 100000 tail calls, AppTerm and Return, in constant stack *)
+let rec loop n acc = if n == 0 then acc else loop (n - 1) (acc + n)
+let a = print_int (loop 100000 0)
+let main = print_newline ()

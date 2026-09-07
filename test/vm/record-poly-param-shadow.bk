@@ -1,0 +1,5 @@
+let get r = r.n
+let apply get = get 6
+let inc x = x + 1
+let a = print_int (apply inc)
+let main = print_newline ()

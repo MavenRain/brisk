@@ -17,11 +17,17 @@
 # list, so ripgrep never reads a missing path.  At Stage 0 no source
 # directory exists, so legs 1 to 4 search nothing and hold zero hits.
 #
+# Leg 4 reads the OCaml sources alone.  It passes the glob '*.ml' to
+# ripgrep, because the rule is about OCaml sources and a brisk program
+# under test/vm is the language under test (D-D-81).  The other legs
+# read every file of the listed directories.
+#
 # ADAPTED from /Users/oobi/Documents/kanon/dev/house.sh (82 lines).  The
 # leg shape, the report helper and the em-dash globs are unchanged.  The
-# kanon one-catch-site leg is replaced by the brisk no-loop leg, the
-# directory lists are the brisk lists of section 3 of the plan, and the
-# disclosed mutable window moves to vm/exec.ml under the R-OQ-M0-5 token.
+# kanon one-catch-site leg is replaced by the brisk no-loop leg, that
+# leg reads only '*.ml', the directory lists are the brisk lists of
+# section 3 of the plan, and the disclosed mutable window moves to
+# vm/exec.ml under the R-OQ-M0-5 token.
 
 set -u
 
@@ -94,11 +100,19 @@ report_empty "no-exception" "$leg1"
 leg2=$(hits $pat_partial $all_dirs)
 report_empty "no-wildcard-no-partial" "$leg2"
 
-# Leg 3:  no mutable state in the core or the machine, except a window of
-# twelve lines after the comment that holds the token R-OQ-M0-5 in
-# vm/exec.ml, which is the ruled ClosureRec knot.
+# Leg 3:  no mutable state in the core or the machine, with two disclosed
+# sites and no third.  The first is a window of twelve lines after the
+# comment that holds the token R-OQ-M0-5 in vm/exec.ml, which is the
+# ruled ClosureRec knot.  The second is vm/value.ml, the one file that
+# owns the value representation of M0-PLAN.md:183-185 and therefore the
+# only file of the machine that names the array module (D-D-16).
+# value.ml is read a second time under the pattern without the array
+# module, so ref, mutable, Hashtbl and Buffer. still fail inside it, and
+# the array module still fails everywhere else in lib/ and vm/.
+pat_state_no_array='\bref\b|\bmutable\b|Hashtbl|Buffer\.'
 leg3=$(hits $pat_state $core_dirs)
 exec_file=$root/vm/exec.ml
+value_file=$root/vm/value.ml
 marker=""
 if [[ -f $exec_file ]]; then
   marker=$(rg -n -- 'R-OQ-M0-5' $exec_file | head -1 | awk -F: '{ print $1 }')
@@ -107,12 +121,24 @@ if [[ -z $leg3 ]]; then
   leg3_bad=""
 else
   leg3_bad=$(print -r -- "$leg3" | awk -F: -v f="$exec_file" -v m="$marker" \
-    'NF && !(m != "" && $1 == f && $2 > m && $2 <= m + 12)')
+    -v v="$value_file" \
+    'NF && $1 != v && !(m != "" && $1 == f && $2 > m && $2 <= m + 12)')
+fi
+if [[ -f $value_file ]]; then
+  leg3_value=$(search -n -U -H -- $pat_state_no_array $value_file)
+  if [[ -n $leg3_value ]]; then
+    leg3_bad=${leg3_bad:+$leg3_bad$'\n'}$leg3_value
+  fi
 fi
 report_empty "no-mutable-state" "$leg3_bad"
 
-# Leg 4:  no bool match and no loop keyword.
-leg4=$(hits $pat_loop $all_dirs)
+# Leg 4:  no bool match and no loop keyword, over the OCaml sources
+# alone (D-D-81).  The glob '*.ml' goes through to ripgrep, so a brisk
+# fixture under test/vm keeps its own bool literal arms.
+leg4=""
+if [[ ${#all_dirs} -gt 0 ]]; then
+  leg4=$(search -n -U --glob '*.ml' -- $pat_loop $all_dirs)
+fi
 report_empty "no-bool-match-no-loop" "$leg4"
 
 # Leg 5:  no em-dash outside the vendor tree, the build tree and .git.

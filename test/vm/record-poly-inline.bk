@@ -1,0 +1,4 @@
+let a = print_int ((fun r -> r.n) { pad = 9, n = 7 })
+let b = print_newline ()
+let c = print_int ((fun r -> r.n) { n = 8, pad = 1 })
+let main = print_newline ()

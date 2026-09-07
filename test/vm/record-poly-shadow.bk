@@ -1,0 +1,5 @@
+let get r = r.n
+let a = let get = fun x -> x + 1 in print_int (get 6)
+let b = print_newline ()
+let c = print_int (get { pad = 9, n = 8 })
+let main = print_newline ()

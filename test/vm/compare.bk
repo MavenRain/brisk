@@ -1,0 +1,1 @@
+let main = print_int (int_compare 3 5)

@@ -12,7 +12,11 @@
    (D-B-14).  Arithmetic is over int, ^ is over string, a comparison is
    over int and answers bool, and and or are over bool.  infer.ml maps
    an Ast.binop arm to one of these names, because lib/ does not read
-   surface/. *)
+   surface/.
+
+   initial also holds the six primitive names of M0-PLAN.md:218 that a
+   source can write (D-D-27).  Each is monomorphic, and Stage D lowers
+   each to one Primop.t, so a fixture can print. *)
 
 module IdentMap = Map.Make (struct
   type t = Ident.t
@@ -107,7 +111,37 @@ let binop_table : (string * Types.scheme) list =
     ("#or", logic);
   ]
 
-let initial : t =
+(* The six primitive names of M0-PLAN.md:218 that a source can write
+   (D-D-27).  A print answers unit, a length answers int and a compare
+   answers int, and every scheme is monomorphic, so one name has one
+   type and the machine reads one primitive at one type.  initial at
+   Stage B bound the fourteen operators alone, so no fixture could print
+   until these six names arrived. *)
+let print_of (a : Types.ty) : Types.scheme =
+  Types.mono (Types.arrow a Types.unit_ty)
+
+let cmp_int : Types.scheme =
+  Types.mono (Types.arrow Types.int_ty (Types.arrow Types.int_ty Types.int_ty))
+
+let cmp_string : Types.scheme =
+  Types.mono
+    (Types.arrow Types.string_ty (Types.arrow Types.string_ty Types.int_ty))
+
+let prim_table : (string * Types.scheme) list =
+  [
+    ("print_string", print_of Types.string_ty);
+    ("print_int", print_of Types.int_ty);
+    ("print_newline", print_of Types.unit_ty);
+    ("string_length", Types.mono (Types.arrow Types.string_ty Types.int_ty));
+    ("string_compare", cmp_string);
+    ("int_compare", cmp_int);
+  ]
+
+(* initial folds both tables, so a later table joins with one line. *)
+let bind_table (e : t) (table : (string * Types.scheme) list) : t =
   List.fold_left
-    (fun e ((n, sc) : string * Types.scheme) -> add (Ident.of_string n) sc e)
-    empty binop_table
+    (fun (acc : t) ((n, sc) : string * Types.scheme) ->
+      add (Ident.of_string n) sc acc)
+    e table
+
+let initial : t = bind_table (bind_table empty binop_table) prim_table

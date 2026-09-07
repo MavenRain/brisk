@@ -1,0 +1,5 @@
+(* ClosureRec:  two mutually recursive members of one group *)
+let rec even n = if n == 0 then 1 else odd (n - 1) and odd n = if n == 0 then 0 else even (n - 1)
+let a = print_int (even 6)
+let b = print_int (odd 6)
+let main = print_newline ()

@@ -55,7 +55,7 @@ core_files=(
   $root/lib/row.ml
   $root/lib/types.ml
   $root/lib/ir.ml
-  $root/lib/lower.ml
+  $root/surface/lower.ml
 )
 vm_files=(
   $root/vm/instr.ml

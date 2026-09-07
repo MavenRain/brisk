@@ -1,0 +1,2 @@
+let b = true
+let main = print_string (if b then "t" else "f")

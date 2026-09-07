@@ -1,0 +1,6 @@
+(* string literal arms test string_compare against zero, D-D-74 *)
+let f s = match s with | "a" -> 1 | "bb" -> 2 | x -> 3
+let a = print_int (f "a")
+let b = print_int (f "bb")
+let c = print_int (f "zz")
+let main = print_newline ()

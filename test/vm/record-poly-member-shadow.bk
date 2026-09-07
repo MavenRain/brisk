@@ -1,0 +1,4 @@
+let get r = r.n
+let a = print_int (get { pad = 9, n = 4 })
+let b = let rec f get = get + 0 in print_int (f 7)
+let main = print_newline ()

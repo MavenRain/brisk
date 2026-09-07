@@ -456,3 +456,45 @@ SUITE-CHECK prints CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0,
 and the battery exits 0 with GATES-OK. The payload-duplicate and
 payload-nested-duplicate fixtures also pass, preserving rejection of
 subsumed payload arms while the disjoint arms now type.
+
+## Stage D continuation (2026-09-06)
+
+### Reader regression negative control
+
+The original executable ran the nine new reader-call fixtures from the
+workspace copy.  Its `_build/default/surface/lower.ml` matched the saved
+pre-continuation source digest.  No repository source was mutated.
+
+```text
+VM files=9 main=9 skipped=0 ok=2 fail=7
+```
+
+The original implementation fails alias, local-alias, inline, shadow,
+parameter-shadow, top-shadow and reader-argument.  The higher-order and
+opaque-argument cases already passed and protect against regressions in
+the adapter.  The fixed executable passes all nine new fixtures and both
+existing reader fixtures:
+
+```text
+VM files=11 main=11 skipped=0 ok=11 fail=0
+```
+
+### VM gate contract controls
+
+An isolated scratch harness used a copy of `dev/gates.sh`, a successful
+build stub and a VM report stub.  These checks validate the gate's report
+handling, not machine semantics.  The real machine's complete battery
+also passed, as recorded in `dev/M0-BUILD-LOG.md`.
+
+| Control | Expected result | Observed result |
+| --- | --- | --- |
+| 29 valid programs, census 22/22, stack 8 | Exit 0 | PASS |
+| Only 28 programs declare main | Exit 1, floor 29 | PASS |
+| Summary counts disagree | Exit 1, summary failure | PASS |
+| Census misses an instruction | Exit 1, census failure | PASS |
+| Census reports a skipped fixture | Exit 1, census failure | PASS |
+| Tailrec stack evidence is absent | Exit 1, missing stack evidence | PASS |
+| Tailrec stack reaches 65 | Exit 1, ceiling 64 | PASS |
+
+These controls do not replace SD-M1, SD-M2 or SD-M3.  Those full machine
+mutations remain part of the unfinished Stage D completion work.

@@ -1,0 +1,2 @@
+let f u = match u with | () -> 5 | x -> 6
+let main = print_int (f ())

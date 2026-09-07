@@ -1,0 +1,6 @@
+(* MakeRec and GetField:  two static offsets of one closed row *)
+let r = { x = 1, y = 2 }
+let a = print_int r.x
+let b = print_newline ()
+let c = print_int r.y
+let main = print_newline ()

@@ -1,0 +1,7 @@
+let f b = match b with | true -> 1 | x -> 2
+let g b = match b with | false -> 3 | x -> 4
+let a = print_int (f true)
+let b = print_int (f false)
+let c = print_int (g true)
+let d = print_int (g false)
+let main = print_newline ()

@@ -1,0 +1,8 @@
+(* Closure and Access over one captured name, then Grab and Restart *)
+let k = 10
+let add x y = x + y + k
+let inc = add 1
+let a = print_int (add 2 30)
+let b = print_newline ()
+let c = print_int (inc 4)
+let main = print_newline ()

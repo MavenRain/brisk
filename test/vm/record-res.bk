@@ -1,0 +1,5 @@
+(* ResRec:  restriction removes the outermost occurrence of the label *)
+let base = { a = 1, b = 2 }
+let r = { base - a }
+let x = print_int r.b
+let main = print_newline ()

@@ -1,0 +1,5 @@
+let get r = r.n
+let a = print_int (get { pad = 9, n = 2 })
+let f v = match (v : < some : int, none : int >) with | < some get > -> get | < none other > -> other
+let b = print_int (f (< some 7 >))
+let main = print_newline ()

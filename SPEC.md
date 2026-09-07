@@ -436,3 +436,204 @@ At each variant node, occurrence indexing reads the row repeatedly and
 payload selection scans the candidate patterns per occurrence. This replaces
 the original Stage C no-allocation claim; the walk is not linear. The
 repository's trusted-core line bound remains unchanged.
+
+## 10 The core IR and the machine
+
+The Stage D implementation lowers a checked program, converts its
+closures and emits a flat instruction array with a constant pool.
+`Lower.lower : Infer.outcome -> Ast.prog -> (Ir.t, Error.t) result` lives
+in `surface/lower.ml`, because it reads the surface AST and the checker.
+`Assemble.assemble` returns a code array and constant pool through
+`Result`.  `Exec.exec` returns `(Value.value, Error.t) result`.  These
+steps run in one process.  The Stage E driver is not present yet.
+
+Stage D remains in progress.  In particular, the current lowering can
+misalign a closed record layout with its inferred field offsets, and can
+assign a variant tag without the row context of a consuming function.
+Readers over several curried parameters, readers captured by closures,
+readers bound by a recursive group, and restriction of an open record
+row also have known lowering failures.  A reader outside the positions
+of section 10.2 is refused with `Not_yet M1` instead of reaching the
+machine stripped of its offsets.  The offset and tag rules below state
+the required semantics.  The VM goldens and instruction census do not
+establish those rules for every checked program.
+
+### 10.1 The core IR
+
+The closed sum in `lib/ir.ml` has fifteen arms.  Variable indices count
+from the top of the runtime stack, starting at zero.  Names and labels
+are compile-time data.  A closure capture list contains stack indices in
+capture order;  the assembler performs no free-variable analysis.
+
+```ocaml
+type t =
+  | ILit of Literal.t
+  | IVar of int
+  | ILam of int list * t
+  | IFix of (int list * t) list * t
+  | IApp of t * t list
+  | ILet of t * t
+  | IIf of t * t * t
+  | IRec of t list
+  | IExt of int * t * t
+  | IRes of t * int
+  | ISel of t * int
+  | ISelDyn of t * t
+  | IBlock of int * t list
+  | ISwitch of t * (int * t) list
+  | IPrim of Primop.t * t list
+```
+
+`ILam` holds one parameter and its body.  The assembler joins nested
+lambdas when their capture lists preserve the surrounding frame, and
+emits one `Grab` per parameter.  `IFix` binds a group of functions with
+one shared capture layout.  `IExt (0, value, record)` prepends a field.
+`ISelDyn (offset, record)` evaluates an integer offset for selection.
+`IBlock` carries a variant tag and its payloads.  `ISwitch` carries a
+tag and body pair for each compiled case.  `Ir.size` counts nodes and
+`Ir.pp` prints the core tree.
+
+### 10.2 Values and layouts
+
+The seven value constructors in `vm/value.ml` are OCaml values.  OCaml
+owns their memory and garbage collection;  brisk has no separate collector.
+
+```ocaml
+type value =
+  | Int of int
+  | Str of string
+  | Bool of bool
+  | Unit
+  | Block of int * value array
+  | Rec of value array
+  | Clos of int * value array
+```
+
+A closure holds an instruction address and an environment array.  A
+record holds its fields in row order.  A field offset is its absolute
+position in that array.  Repeated labels remain ordered, and the
+outermost occurrence is the first matching field.  Extension prepends a
+field and rebuilds the array.  Restriction removes the selected outermost
+occurrence and rebuilds the remaining fields in order.
+
+A closed selection emits `GetField` with a static offset.  A
+row-polymorphic reader receives an extra integer argument for each
+selected field occurrence, supplied by a call site with a known layout.
+Its selection emits `GetFieldDyn`.  An offset that the caller cannot
+resolve is refused with `Not_yet M1`.
+
+A reader keeps its hidden offsets in three positions only:  a `let`
+binding of the reader, an argument whose parameter type is an arrow over
+a closed record, and a top-level `DLet`.  In every other position the
+value would reach the machine without its offsets, so lowering refuses
+it with `Not_yet M1` at compile time.  The refused positions are a name
+with offsets read as a plain variable, an argument of a type-variable
+parameter, a record field value and a branch of an `if`.  A refusal is
+honest;  a stripped reader would read the wrong slot at run time.
+
+A variant block holds a tag and payload array.  The tag is the absolute
+position of the label occurrence in its closed variant row, including
+other labels before it.  A closed variant match uses a jump table.
+Literal matches lower to a chain of conditionals, one test per arm, and
+the test follows the kind of the literal.  An integer arm compares with
+`EqInt`.  A string arm compares `CmpStr` against zero.  A `true` arm
+tests the scrutinee and a `false` arm tests `NotBool` of it.  A `()` arm
+always holds and needs no test.  A literal arm list with no name or
+wildcard arm has no residual case;  lowering answers `Not_yet M1` there,
+but the checker refuses that arm list first as non-exhaustive, including
+a complete `true` and `false` pair, so the lowering case is not reachable
+from a checked program.  Record patterns are intended to lower to field
+selections and bindings, but the current lowering refuses them with
+`Not_yet M1`.
+
+`Value.nth` returns an option, and machine reads handle a missing slot
+with a named error.  It guards the index against the bounds and reads
+the one slot inside them, so a single `GetField` instruction costs
+constant time.  A negative index answers `None`.
+Instruction fetches use the same reader.  The array operations live in
+`vm/value.ml`, except
+the one documented `Array.set` in `vm/exec.ml`.  That write fills slot
+zero of a fresh environment array to tie a recursive group together.
+
+### 10.3 The twenty-two instructions
+
+The instruction set in `vm/instr.ml` is closed at twenty-two
+constructors.  The table follows M0-PLAN.md section 7 with the actual
+payload forms: `ExtRec` needs no offset because it always prepends;
+`Prim` gets its arity from `Primop.arity`;  `ClosureRec` gets the group's
+entry addresses from a constant-pool slot.
+
+| Instruction | Effect |
+| --- | --- |
+| `Const k` | The accumulator takes constant-pool slot k. |
+| `Access n` | The accumulator takes stack slot n, counted from the top. |
+| `Push` | Push the accumulator. |
+| `Pop n` | Drop n stack slots. |
+| `Closure (p, n)` | Build a closure at address p over the top n slots. |
+| `ClosureRec (p, n)` | Read the group addresses from pool slot p, capture n slots and tie the shared environment. |
+| `Apply n` | Apply the accumulator to the top n argument slots and save a return frame. |
+| `AppTerm n` | Apply n arguments in tail position and reuse the return frame. |
+| `Return n` | Drop the n slots of the current frame and return the accumulator. |
+| `Grab` | Take one argument or return a partial application. |
+| `Restart` | Restore the saved arguments of a partial application and re-enter. |
+| `MakeRec n` | Build a record from the top n slots. |
+| `GetField k` | Read field k from the record in the accumulator. |
+| `GetFieldDyn` | Pop an integer offset and read that field from the accumulator's record. |
+| `ExtRec` | Pop a field value and prepend it to the accumulator's record. |
+| `ResRec k` | Remove field k from the accumulator's record. |
+| `MakeBlock (t, n)` | Build a variant with tag t and n payload slots. |
+| `Switch table` | Jump to the table entry for the accumulator's tag. |
+| `BranchIf p` | Jump to p when the accumulator is true. |
+| `Branch p` | Jump to p. |
+| `Prim op` | Apply the primitive to its known number of arguments. |
+| `Stop` | Halt and return the accumulator. |
+
+The VM is a tail-recursive OCaml walk over the instruction array with
+one accumulator and an explicit value stack.  Tail position passes into
+lambda bodies, conditional arms, match arms and let bodies.  A call in
+tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
+recursion fixture makes 100,000 calls, and SUITE-VM requires its maximum
+stack use to stay at or below 64 slots.
+
+`type frame = EffFrame of int * int` is a separate declaration and does
+not add an instruction.  No M0 program emits it.  The assembler refuses
+it with `Not_yet M1`, which prints as
+`Not_yet 0:0-0:0 the form arrives at M1`.  The planned wording
+`effects arrive at M1` is not reachable, because `lib/error.ml` builds
+the text of every `Not_yet` as `the form arrives at MILESTONE` and a
+per-form sentence would need a new error constructor.
+
+### 10.4 Primitives and failures
+
+`lib/primop.ml` declares the closed primitive set, names and arities.
+`vm/prim.ml` applies it to values.  The set is `PrintString`, `PrintInt`,
+`PrintNewline`, `AddInt`, `SubInt`, `MulInt`, `DivInt`, `ModInt`,
+`CmpInt`, `EqInt`, `NeInt`, `LtInt`, `LeInt`, `GtInt`, `GeInt`,
+`CatStr`, `LenStr`, `CmpStr`, `AndBool`, `OrBool` and `NotBool`.
+The six named bindings are `print_string`, `print_int`, `print_newline`,
+`string_length`, `string_compare` and `int_compare`, beside the surface
+operators.  `NotBool` has no named binding and no operator of its own.
+Lowering emits it for a `false` literal arm of a match, which is its one
+surface use.
+
+Machine operations return a `Result`.  Division and modulo refuse a
+zero divisor with `the divisor is zero`.  `AndBool` and `OrBool` are
+ordinary two-argument primitives at M0, so `&&` and `||` evaluate both
+operands before the primitive runs.  `(z != 0) && ((10 / z) > 1)` with
+`z` at zero therefore answers `the divisor is zero`, not `false`.  Short
+circuit evaluation arrives with the M1 work on the operators.  The
+explicit stack has a
+ceiling of 65,536 slots and fails with
+`the stack ceiling of 65536 slots is reached`.  A missing switch entry
+fails with `the switch table has no entry for tag K`, with the tag in
+place of K.  Machine errors currently use the existing `Parse` error
+constructor at the origin span;  no runtime error constructor is added.
+
+`Exec.exec_out` returns the value, printed bytes and instruction census
+without writing the program's output.  The VM suite compares those bytes
+with the hand-written `.out` sibling of each `.bk` program.  Files that
+declare no `main` count as skipped.  The summary is
+`VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
+29 programs, no failures and consistent counts.  The suite holds 35
+programs with a `main`, so 29 is a floor and not the count.  It also requires
+`CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.

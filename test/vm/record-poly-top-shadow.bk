@@ -1,0 +1,7 @@
+let get r = r.n
+let alias = get
+let get x = x + 1
+let a = print_int (get 6)
+let b = print_newline ()
+let c = print_int (alias { pad = 9, n = 8 })
+let main = print_newline ()

@@ -1,0 +1,4 @@
+(* one label twice:  the selection reads the outermost occurrence *)
+let r = { a = 1, a = 2 }
+let b = print_int r.a
+let main = print_newline ()

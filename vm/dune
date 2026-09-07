@@ -1,0 +1,13 @@
+; vm/dune:  brisk_vm, the machine of M0 (D-D-33).
+; The module list stays open, so assemble.ml and exec.ml join the
+; library without an edit of this file, which is how lib/dune and
+; surface/dune are written (D-A-12).
+; The library is unwrapped, so Instr, Value and Prim name themselves in
+; test/ (D-A-11).
+; -warn-error +a is the "warnings as errors" of M0-PLAN.md:245 (D-A-10).
+
+(library
+ (name brisk_vm)
+ (wrapped false)
+ (libraries brisk_core)
+ (flags (:standard -warn-error +a)))

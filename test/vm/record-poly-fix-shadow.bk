@@ -1,0 +1,5 @@
+let get r = r.n
+let a = print_int (get { pad = 9, n = 3 })
+let rec other x = x + 1 and get y = other y
+let b = print_int (get 5)
+let main = print_newline ()

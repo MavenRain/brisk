@@ -1,0 +1,4 @@
+(* MakeBlock and Switch:  a closed row of two occurrences, the last tag taken *)
+let f v = match (v : < b : int, b : int >) with | < b x > -> x + 100 | < b ^ 1 y > -> y
+let a = print_int (f (< b ^ 1 7 >))
+let main = print_newline ()

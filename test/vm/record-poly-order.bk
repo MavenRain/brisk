@@ -1,0 +1,7 @@
+(* the two call sites order the labels differently, so a static offset
+   reads the wrong field:  the reader is row polymorphic (D-D-8) *)
+let get r = r.n
+let a = print_int (get { s = 1, n = 2 })
+let b = print_newline ()
+let c = print_int (get { n = 3, s = 4 })
+let main = print_newline ()

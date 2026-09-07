@@ -1,0 +1,6 @@
+(* one row polymorphic reader at two call sites of different shapes *)
+let get r = r.n
+let a = print_int (get { n = 1, s = 2 })
+let b = print_newline ()
+let c = print_int (get { n = 3, t = 4, u = 5 })
+let main = print_newline ()

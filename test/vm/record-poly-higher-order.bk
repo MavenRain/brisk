@@ -1,0 +1,4 @@
+let get r = r.n
+let apply get = get { pad = 9, n = 7 }
+let a = print_int (apply get)
+let main = print_newline ()

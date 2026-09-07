@@ -3,11 +3,9 @@
 # The M0 gate battery.  Example:
 #   zsh /Users/oobi/Documents/brisk/dev/gates.sh
 #
-# At Stage A exactly four legs run, BUILD, HOUSE, PARSE and DENOMINATORS,
-# because they are the legs of the stage row (M0-PLAN.md:278).  Every
-# other leg of plan section 9 is absent, not stubbed:  a leg with nothing
-# to check is the vacuous pass that HALT-E-2 names.  Each stage adds its
-# own legs.
+# Through Stage D seven legs run: BUILD, HOUSE, PARSE, SUITE-CHECK,
+# SUITE-VM, TRUSTED-LINES and DENOMINATORS.  Each stage adds its own
+# legs when their fixtures exist (M0-PLAN.md:278-281, HALT-E-2).
 #
 # Each leg prints one PASS or FAIL line.  A FAIL adds the leg's captured
 # output under its line.  Every leg runs even when an earlier one failed,
@@ -228,6 +226,89 @@ leg_suite_check () {
   return 0
 }
 
+# SUITE-VM (M0-PLAN.md:250, D-D-35).  Every positive file with main
+# must match its stdout golden.  The floor holds the twenty-nine programs
+# already present at Stage D.  The same list must emit and execute all
+# twenty-two instructions, and tailrec must use at most 64 stack slots.
+leg_suite_vm () {
+  local out code line n r s k m census stack peak
+  local main_floor=29
+  out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
+  code=$?
+  if [[ $code -ne 0 || -n $out ]]; then
+    print -r -- "build exit=$code"
+    print -r -- "$out"
+    print -r -- "FAIL SUITE-VM"
+    return 1
+  fi
+  local files=(
+    $ROOT/test/vm/*.bk(N)
+    $ROOT/test/pos/*.bk(N)
+  )
+  if [[ ${#files} -lt $main_floor ]]; then
+    print -r -- "FAIL SUITE-VM fixtures=${#files} floor=$main_floor"
+    return 1
+  fi
+  out=$($ROOT/_build/default/test/vm.exe $files 2>&1)
+  code=$?
+  print -r -- "$out"
+  line=$(print -r -- "$out" | rg -- '^VM files=')
+  if [[ $code -ne 0 ]] || ! print -r -- "$line" | rg -qx -- \
+    'VM files=[0-9]+ main=[0-9]+ skipped=[0-9]+ ok=[0-9]+ fail=0'; then
+    print -r -- "FAIL SUITE-VM"
+    return 1
+  fi
+  n=$(field "$line" files)
+  r=$(field "$line" main)
+  s=$(field "$line" skipped)
+  k=$(field "$line" ok)
+  m=$(field "$line" fail)
+  if [[ $n != <-> || $r != <-> || $s != <-> || $k != <-> || $m != 0 ]] \
+    || [[ $n -ne ${#files} || $n -ne $((r + s)) || $k -ne $r ]]; then
+    print -r -- "FAIL SUITE-VM summary"
+    return 1
+  fi
+  if [[ $r -lt $main_floor ]]; then
+    print -r -- "FAIL SUITE-VM main=$r floor=$main_floor"
+    return 1
+  fi
+  census=$($ROOT/_build/default/test/vm.exe --census $files 2>&1)
+  code=$?
+  print -r -- "$census"
+  line=$(print -r -- "$census" | rg -- '^CENSUS ')
+  if [[ $code -ne 0 || $line != 'CENSUS emitted=22/22 executed=22/22' ]] \
+    || print -r -- "$census" | rg -q -- '^CENSUS-(MISSING|SKIP) '; then
+    print -r -- "FAIL SUITE-VM census"
+    return 1
+  fi
+  stack=$(print -r -- "$census" | rg -F -- "STACK $ROOT/test/vm/tailrec.bk max=")
+  peak=$(field "$stack" max)
+  if [[ $peak != <-> ]]; then
+    print -r -- "FAIL SUITE-VM tailrec stack missing"
+    return 1
+  fi
+  if [[ $peak -gt 64 ]]; then
+    print -r -- "FAIL SUITE-VM tailrec max=$peak ceiling=64"
+    return 1
+  fi
+  print -r -- "PASS SUITE-VM programs=$r goldens=$r"
+  return 0
+}
+
+# TRUSTED-LINES (D-D-36).  Stage D requires every counted source file.
+leg_trusted_lines () {
+  local out code
+  out=$(zsh $ROOT/dev/trusted-lines.sh --require $ROOT 2>&1)
+  code=$?
+  print -r -- "$out"
+  if [[ $code -eq 0 ]]; then
+    print -r -- "PASS TRUSTED-LINES"
+    return 0
+  fi
+  print -r -- "FAIL TRUSTED-LINES"
+  return 1
+}
+
 # DENOMINATORS (M0-PLAN.md:253).  The sidecar holds the record, the
 # record holds every key, dev/denominators.sh re-measures the raw figure
 # in this run, its DENOM corpus digest, file count and line count equal
@@ -335,6 +416,8 @@ if [[ $# -ge 2 && $1 == "--leg" ]]; then
     house) leg_house; exit $? ;;
     parse) leg_parse; exit $? ;;
     suite-check) leg_suite_check; exit $? ;;
+    suite-vm) leg_suite_vm; exit $? ;;
+    trusted-lines) leg_trusted_lines; exit $? ;;
     denominators) leg_denominators; exit $? ;;
     *) print -r -- "gates: unknown leg $2"; exit 64 ;;
   esac
@@ -383,11 +466,13 @@ leg () {
   return 1
 }
 
-# The four legs of the Stage A row, in the order of plan section 9.
+# The seven legs through Stage D, in the order of plan section 9.
 leg MED BUILD SELF zsh $SELF --leg build
 leg FAST HOUSE SELF zsh $SELF --leg house
 leg MED PARSE SELF zsh $SELF --leg parse
 leg SUITE SUITE-CHECK SELF zsh $SELF --leg suite-check
+leg SUITE SUITE-VM SELF zsh $SELF --leg suite-vm
+leg FAST TRUSTED-LINES SELF zsh $SELF --leg trusted-lines
 leg SLOW DENOMINATORS SELF zsh $SELF --leg denominators
 
 print -r -- ""

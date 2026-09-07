@@ -1,0 +1,6 @@
+(* a literal arm list with a name arm, the IIf chain of D-D-9 *)
+let f n = match n with | 0 -> 10 | 1 -> 20 | x -> x
+let a = print_int (f 1)
+let b = print_newline ()
+let c = print_int (f 5)
+let main = print_newline ()

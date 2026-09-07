@@ -1,0 +1,2 @@
+let n = 7
+let main = print_int (if n < 5 then 1 else 2)
