@@ -1,0 +1,2 @@
+let shown = print_int ((let z = 2 in fun x -> x + z) 1)
+let main = print_newline ()

@@ -1,0 +1,4 @@
+let h a b = a + b
+let run base = let rec walk n = if n == 0 then base else let z = n - 1 in walk z in walk 100000
+let shown = print_int (h 1 (let base = 7 in run base))
+let main = print_newline ()

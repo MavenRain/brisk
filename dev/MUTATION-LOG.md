@@ -540,3 +540,47 @@ record run above supplies the concrete mismatch. SD-M2 and SD-M3 were
 not certified against the full final suite by this continuation. The
 isolated assembler source was restored afterwards. These witnesses do
 not close the remaining layout work or establish a Stage D exit stamp.
+
+### Stack-slot regression and mutation controls, 2026-09-06
+
+The executable built from starting commit `3259c4d` runs all fifteen new
+`stack-*` fixtures with `VM files=15 main=15 skipped=0 ok=0 fail=15`.
+All parse and check successfully. Ten fail on stdout and five answer a
+machine error. The fixed executable passes every new fixture and the
+complete 63-program suite.
+
+Four independent source mutations were compiled in isolated copies of
+the fixed tree. Every build exited zero with no diagnostics. Every
+focused run exited one because of a semantic failure, with no timeout,
+parser failure or type-checking failure.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| SS-M1: only the let binder records `f 0 + 1` instead of `d + 1` | `stack-let-argument`, `stack-let-outer`, `stack-function-head`, `stack-reader-adapter` | Four of four fail: three stdout mismatches and one closure-kind machine error. |
+| SS-M2: only switch payloads record `f 0 + 1` | `stack-match-argument`, `stack-match-capture` | Two of two stdout mismatches. |
+| SS-M3: only the recursive-group binder records `f 0 + 1` | `stack-fix-argument` | One of one fails with `the machine wants a record here`. |
+| SS-M4: captures use dense offsets `d - f 0 + dep + j` | `stack-closure-argument`, `stack-match-capture`, `stack-fix-capture` | Three of three stdout mismatches. |
+
+The unchanged control passes all nine distinct focused fixtures. These
+mutations leave unrelated binder mappings intact, so each row checks its
+own path through the fix.
+
+Two corpus controls exercise the stronger suite floors in another
+isolated fixed copy. Its unchanged suite passes six refusals and 63
+programs. Removing `stack-let-argument.bk` leaves 62 successful programs
+but exits one with `FAIL SUITE-VM main=62 floor=63`. Restoring it and
+removing `open-row-restriction.bk` exits one with
+`FAIL SUITE-VM missing lowering refusals`. Both files are restored
+afterwards. Main-tree assembler and gate hashes remain unchanged.
+
+Independent diff review found no correctness defect. Its eight additional
+IR probes pass: dynamic-selection record operands with let, switch and
+recursive binders; an older lexical reference; reordered ordinary and
+recursive captures; and partial applications with joined entries and
+reordered captures. These probes and all exact mutation replacements,
+commands and captured logs live under
+`/Users/oobi/Documents/gpt8/brisk-stack-evidence`.
+
+The two existing record-order and contextual-variant reproduction
+goldens still fail. These controls establish the stack-slot repair,
+without closing the remaining Stage D layout work.

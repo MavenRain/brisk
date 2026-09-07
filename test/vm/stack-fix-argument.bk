@@ -1,0 +1,4 @@
+let h a b = a + b
+let base = 7
+let shown = print_int (h 1 (let rec f n = if n == 0 then base else f (n - 1) in f 2))
+let main = print_newline ()

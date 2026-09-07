@@ -9,6 +9,8 @@ in progress: record layouts and contextual variant tags still have known
 lowering failures (SPEC.md section 10).  Row-reader offsets now survive
 currying, partial application, captures and recursive groups.  Open-row
 restriction and open calls without identifiable offset binders are refused.
+The assembler preserves lexical bindings and captures across temporary
+argument pushes, including nested lets, matches and recursive groups.
 The driver arrives at Stage E.  The grammar,
 the tree and
 the printer are a rewrite, not a port.  SPEC.md holds the surface syntax,
@@ -58,8 +60,8 @@ HOUSE holds the house rules of the plan section 11 over lib, surface and
 vm, plus test.  PARSE holds parse, print, parse and print equal on its 45
 fixtures.  SUITE-CHECK requires at least 18 positive fixtures and 36
 negative twins.  SUITE-VM checks the stdout goldens of every program with
-`main` in `test/vm` and `test/pos`, with a floor of 48 programs.  It
-requires at least two lowering refusals to parse and check successfully
+`main` in `test/vm` and `test/pos`, with a floor of 63 programs.  It
+requires at least six lowering refusals to parse and check successfully
 before matching their exact diagnostic goldens;  the tree ships six.
 SUITE-VM also
 requires all 22 instructions to be emitted and executed, and the

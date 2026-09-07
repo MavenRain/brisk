@@ -1,0 +1,3 @@
+let base = 7
+let shown = print_int (1 + (let z = 2 in z + base))
+let main = print_newline ()

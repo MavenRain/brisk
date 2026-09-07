@@ -492,6 +492,14 @@ one shared capture layout.  `IExt (0, value, record)` prepends a field.
 tag and body pair for each compiled case.  `Ir.size` counts nodes and
 `Ir.pp` prints the core tree.
 
+The assembler maps each lexical index to its slot height above the current
+frame base. Temporary argument pushes increase the physical depth alone;
+let bindings, switch payloads and recursive groups add a lexical slot at
+the current depth. Variable reads and closure captures subtract the saved
+height from the physical depth, so intervening temporaries cannot change
+which binder they read. Function entries start with contiguous slot
+heights. Returns still consume the complete physical frame.
+
 ### 10.2 Values and layouts
 
 The seven value constructors in `vm/value.ml` are OCaml values.  OCaml
@@ -645,9 +653,9 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-48 programs, no failures and consistent counts.  It also requires
+63 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
-The same gate runs at least two `test/lower-neg` programs through
+The same gate runs at least six `test/lower-neg` programs through
 `test/refusals.exe`, and the tree ships six.  Each must parse and type
 check, then fail lowering
 with exactly its hand-written `.err` diagnostic.  Successful lowering,

@@ -1,0 +1,5 @@
+let a1 r = r.n
+let apply f = f { m = 1, n = 2, pad = 3 }
+let add2 x y = x + y
+let shown = print_int (add2 5 (apply a1))
+let main = print_newline ()

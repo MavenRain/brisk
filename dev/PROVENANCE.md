@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 48 programs with their goldens, two exact lowering refusals after successful parsing and typing, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 63 programs with their goldens, six exact lowering refusals after successful parsing and typing, consistent summary counts, the 22/22 emitted and executed census, and a tail recursion maximum of 64 stack slots. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -177,3 +177,43 @@ the reader changes do not copy code from another project.
 | `test/vm/record-poly-partial-capture.out` | none | NEW | Hand-derived stdout `15`. |
 | `test/vm/record-poly-preserved-join.bk` | none | NEW | Conditional and match origins preserve reader behavior. |
 | `test/vm/record-poly-preserved-join.out` | none | NEW | Hand-derived stdout `777`. |
+
+### Stack-slot continuation, 2026-09-06
+
+`vm/assemble.ml` keeps its original provenance. Its immutable lexical slot
+mapping is new code written for Brisk, inside the counted machine file.
+The following sources and stdout goldens are hand-written; every golden
+ends with one newline.
+
+| File | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/stack-let-argument.bk` | none | NEW | Later call argument binds and reads its own slot. |
+| `test/vm/stack-let-argument.out` | none | NEW | Hand-derived stdout `3`. |
+| `test/vm/stack-let-nested.bk` | none | NEW | Nested temporaries preserve older and newer binders. |
+| `test/vm/stack-let-nested.out` | none | NEW | Hand-derived stdout `312`. |
+| `test/vm/stack-let-outer.bk` | none | NEW | A local binder and an older outer slot both remain accessible. |
+| `test/vm/stack-let-outer.out` | none | NEW | Hand-derived stdout `10`. |
+| `test/vm/stack-match-argument.bk` | none | NEW | A switch payload binds above an earlier argument. |
+| `test/vm/stack-match-argument.out` | none | NEW | Hand-derived stdout `10`. |
+| `test/vm/stack-fix-argument.bk` | none | NEW | A recursive group binds above an earlier argument. |
+| `test/vm/stack-fix-argument.out` | none | NEW | Hand-derived stdout `8`. |
+| `test/vm/stack-closure-argument.bk` | none | NEW | A closure captures slots on both sides of a temporary. |
+| `test/vm/stack-closure-argument.out` | none | NEW | Hand-derived stdout `13`. |
+| `test/vm/stack-fix-capture.bk` | none | NEW | A recursive closure captures slots across a temporary. |
+| `test/vm/stack-fix-capture.out` | none | NEW | Hand-derived stdout `10`. |
+| `test/vm/stack-record-fields.bk` | none | NEW | A later record field contains a lexical binding. |
+| `test/vm/stack-record-fields.out` | none | NEW | Hand-derived stdout `9`. |
+| `test/vm/stack-record-extension.bk` | none | NEW | The record operand of extension contains a binding. |
+| `test/vm/stack-record-extension.out` | none | NEW | Hand-derived stdout `9`. |
+| `test/vm/stack-reader-adapter.bk` | none | NEW | A later argument evaluates a closed reader adapter. |
+| `test/vm/stack-reader-adapter.out` | none | NEW | Hand-derived stdout `7`. |
+| `test/vm/stack-primitive.bk` | none | NEW | A primitive operand binds above a pending operand. |
+| `test/vm/stack-primitive.out` | none | NEW | Hand-derived stdout `10`. |
+| `test/vm/stack-evaluation-order.bk` | none | NEW | Argument output remains left to right and runs once. |
+| `test/vm/stack-evaluation-order.out` | none | NEW | Hand-derived stdout `123`. |
+| `test/vm/stack-match-capture.bk` | none | NEW | A closure captures an outer slot and a match payload. |
+| `test/vm/stack-match-capture.out` | none | NEW | Hand-derived stdout `13`. |
+| `test/vm/stack-tail-nested.bk` | none | NEW | Nested bindings retain 100,000 tail calls. |
+| `test/vm/stack-tail-nested.out` | none | NEW | Hand-derived stdout `8`. |
+| `test/vm/stack-function-head.bk` | none | NEW | The call head binds and captures after arguments are pushed. |
+| `test/vm/stack-function-head.out` | none | NEW | Hand-derived stdout `3`. |

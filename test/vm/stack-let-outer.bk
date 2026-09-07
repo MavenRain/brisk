@@ -1,0 +1,4 @@
+let h a b = a + b
+let outer = 7
+let shown = print_int (h 1 (let z = 2 in z + outer))
+let main = print_newline ()

@@ -999,3 +999,65 @@ Every new refusal fixture failed against the staged binary before its
 fix and passes after it. The four fixtures ran through
 `_build/default/test/refusals.exe` one at a time, and each printed
 `REFUSALS files=1 ok=0 fail=1` before the fix.
+
+### Lexical stack-slot continuation, 2026-09-06
+
+Starting commit: `3259c4d`. The main repository was clean. Implementation
+and validation ran in `/Users/oobi/Documents/gpt8/brisk-layout`, a fresh
+local clone of that commit. The completed delta is staged in
+`/Users/oobi/Documents/brisk`; the user commits.
+
+The assembler previously treated temporary argument slots as one prefix
+above every lexical binder. A let, switch payload or recursive group can
+instead bind above that prefix. Consequently
+`h 1 (let z = 2 in z)` printed `2` instead of `3`, and a reader adapter
+in a later argument could attempt to call an integer. The assembler now
+records the physical height of each lexical slot and uses that mapping
+for variable reads and closure captures.
+
+| Id | Change | Reason |
+| --- | --- | --- |
+| D-D-C11 | An immutable scope maps lexical indices to slot heights above the frame base. A temporary changes depth alone; a binding records depth plus one. | New and older binders remain distinct when temporary slots separate them. |
+| D-D-C12 | Let bodies, switch arms and recursive-group bodies extend the scope; ordinary and recursive captures read through it. Function entries initialize a contiguous scope. | Every binder and capture obeys the same invariant, including partial applications. Physical return depth and the instruction set stay unchanged. |
+| D-D-C13 | Add fifteen hand-written VM fixture pairs; raise the executable floor from 48 to 63 and the lowering-refusal floor from two to six. | All new regressions and all six shipped refusal cases contribute to non-vacuous gate coverage. |
+
+The saved executable from the starting commit fails all fifteen new
+programs after successful parsing and checking: ten stdout mismatches
+and five machine errors. The repaired executable passes all fifteen.
+Coverage includes nested bindings and older slots, match payloads,
+recursive groups, captures across temporary slots, record construction
+and extension, primitive operands, reader adapters, function-position
+expressions, evaluation order and 100,000 tail calls.
+
+The complete pinned gate battery passed:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=45
+CHECK files=54 pos=18 neg=36 inst=38 over=14 ok=54 fail=0
+PASS SUITE-CHECK positives=18 twins=36
+REFUSALS files=6 ok=6 fail=0
+VM files=81 main=63 skipped=18 ok=63 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=63 goldens=63
+TRUSTED-LINES core=1994/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=270.577
+GATES-OK
+```
+
+The existing tailrec fixture uses at most seven slots; the new nested
+tail-call fixture uses ten. The source change is confined to the counted
+`vm/assemble.ml` file. A shorter introductory comment pays for the scope
+helpers, reducing the machine total from 799 to 795 lines. No counted
+path, cap, IR arm, instruction or primitive changes. The numerator
+placeholder and denominator manifests retain their original contents.
+
+The known record-order and contextual-variant reproductions still fail
+their semantic goldens. Stage D remains incomplete and Stage E stays
+unopened. The next implementation slice is layout reconciliation as
+described in `dev/STAGE-D-STATUS.md`.
+
+Full baseline, gate, mutation and independent review evidence is retained
+under `/Users/oobi/Documents/gpt8/brisk-stack-evidence`.

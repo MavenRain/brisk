@@ -1,7 +1,7 @@
 # Stage D continuation, 2026-09-06
 
-Stage D is incomplete. This continuation starts from commit `674f89c`
-and repairs reader calling conventions. The record and variant layout
+Stage D is incomplete. The reader continuation starts from `674f89c`;
+the stack-slot repair starts from `3259c4d`. The record and variant layout
 failures below remain. A passing fixture battery does not establish
 correct lowering of every accepted M0 program.
 
@@ -22,10 +22,8 @@ record binder. This repairs three of the six previously listed gaps:
   mutual recursion and captured records require no VM change.
 
 Closed higher-order reader parameters receive curried adapter closures.
-The adapter is correct only for a reader argument that the assembler
-emits at the frame base. The assembler reads a let-bound slot too deep
-under a pending push, so an adapter in a later argument position fails.
-Read `### Let bound values under pending pushes` below.
+The stack-slot repair also makes these adapters work in later argument
+positions, where earlier arguments remain on the stack.
 Conditional branches that preserve one record origin keep its offsets;
 a catch-all match name also retains the scrutinee's origin. Thirteen new
 hand-written VM regression pairs cover these paths and ordinary reader
@@ -76,6 +74,25 @@ All six cases live in `test/lower-neg` with exact diagnostic goldens.
 `test/refusals.exe` requires successful parsing and type checking before
 accepting a lowering refusal. SUITE-VM requires all six fixtures.
 
+## Stack-slot repair
+
+The assembler now records lexical slot heights separately from physical
+stack depth. New let bindings, switch payloads and recursive groups record
+their actual position, and captures use the same mapping. Temporary
+argument pushes no longer shift a binder onto an unrelated value.
+
+Both previously documented reproductions now produce their semantic
+results: `h 1 (let z = 2 in z)` returns `3`, and the later-argument
+reader adapter in `add2 5 (apply a1)` returns `7`. Fifteen `stack-*`
+VM fixtures cover these paths, older and nested bindings, captures,
+recursive groups, record construction and extension, primitive operands,
+function-position expressions, evaluation order and deep tail calls.
+
+The change stays inside `vm/assemble.ml`, with no new IR arm or machine
+instruction. The counted machine size is 795/800 lines. The core remains
+1994/2000 lines. SUITE-VM now requires 63 programs and all six existing
+lowering refusals.
+
 ## Remaining layout failures
 
 These expected outputs follow source semantics. Save a source block as
@@ -115,40 +132,6 @@ physical field order differs from the consumer's inferred row order.
 let f r = (r : { a : int, b : int }).b
 let main = print_int (f { b = 7, a = 1 })
 ```
-
-### Let bound values under pending pushes
-
-Expected `3`. The program prints `2`. The assembler reads the let-bound
-slot one slot too deep, because a temporary of the call is already on
-the stack.
-
-```text
-let h a b = a + b
-let main = print_int (h 1 (let z = 2 in z))
-```
-
-Expected `7`. The program answers the machine error `the machine wants a
-closure at the head of a call`. The reader adapter of the second
-argument is an `ILet`, so it reads its own slot too deep.
-
-```text
-let a1 r = r.n
-let apply f = f { m = 1, n = 2, pad = 3 }
-let add2 x y = x + y
-let main = print_int (add2 5 (apply a1))
-```
-
-The cause is the `Ir.ILet` arm of `emit` at `vm/assemble.ml:109-114`. It
-compiles the body at frame base plus one and depth plus one, so the
-difference of the depth and the frame base stays the same, and the new
-binder reads the difference as an offset. The invariant comment at
-`vm/assemble.ml:50-51` states the rule that the arm breaks.
-
-The repair needs a VM change. Both sound repairs edit `vm/assemble.ml`,
-which the vm bucket of `dev/trusted-lines.sh` counts at 799 of 800
-lines, so the repair stays outside the M0 vm bound. The lowering cannot
-gate on the defect, because the emission depth is invisible to
-`surface/lower.ml`.
 
 ## Next implementation work
 

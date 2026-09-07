@@ -1,0 +1,4 @@
+let h a b = a * 100 + b
+let outer = 7
+let shown = print_int (h 1 (let x = 2 in h x (let y = 3 in outer + x + y)))
+let main = print_newline ()

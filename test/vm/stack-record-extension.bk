@@ -1,0 +1,4 @@
+let base = 7
+let r = { a = 1 | let z = 2 in { b = z + base } }
+let shown = print_int r.b
+let main = print_newline ()

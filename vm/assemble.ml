@@ -1,16 +1,6 @@
-(* vm assemble.ml:  the core IR to the flat code array (D-D-17).
-
-   assemble is one walk that threads the next address and the constant
-   pool through the answer, so a branch address comes from the lengths the
-   walk has already answered and no patch list holds a hole (D-D-68).
-
-   Tail position rides one continuation value (D-D-18):  KRet says that
-   the answer leaves the frame, so a call there is AppTerm and every
-   other node ends with Return.  A body of n parameters opens with n
-   Grab instructions, and the entry of a partial application is the
-   Restart address one slot under the first Grab (D-D-19).  split_last
-   answers None on an empty argument list and frame_code answers the
-   Not_yet M1 refusal of D-D-12. *)
+(* Core IR to flat code (D-D-17), threading addresses and constants without
+   patch holes (D-D-68). KRet emits AppTerm or Return (D-D-18); curried
+   entries have Restart before their Grab instructions (D-D-19). *)
 
 let ( let* ) (r : ('a, Error.t) result) (f : 'a -> ('b, Error.t) result) :
     ('b, Error.t) result =
@@ -47,8 +37,14 @@ let value_of_lit (l : Literal.t) : Value.value =
   | Literal.Bool b -> Value.Bool b
   | Literal.Unit -> Value.Unit
 
-(* d counts the slots above the base and f the slots the lexical frame
-   owns, so a lexical read at n reads the stack at n + (d - f). *)
+(* A scope maps lexical indices to slot heights above the frame base.
+   Temporaries change depth d only; a binder records its new height d+1.
+   Thus index n reads d - f n even when temporaries separate binders. *)
+type scope = int -> int
+let frame (size : int) (n : int) : int = size - n
+let bind (f : scope) (d : int) (n : int) : int =
+  if Int.equal n 0 then d + 1 else f (n - 1)
+
 let finish (k : cont) (d : int) (o : out) : out =
   match k with
   | KFall -> o
@@ -77,10 +73,10 @@ let rec join (b : Ir.t) (frame : int) (n : int) : int * Ir.t =
 let grabs (n : int) : Instr.t list = List.init n (fun (_ : int) -> Instr.Grab)
 
 (* A capture read stands one slot deeper at each push that came under it. *)
-let cap_code (caps : int list) : Instr.t list =
+let cap_code (caps : int list) (f : scope) (d : int) : Instr.t list =
   List.concat
     (List.mapi
-       (fun (j : int) (dep : int) -> [ Instr.Access (dep + j); Instr.Push ])
+       (fun (j : int) (dep : int) -> [ Instr.Access (d - f dep + j); Instr.Push ])
        caps)
 
 let table_of (cases : (int * int) list) : int array =
@@ -96,20 +92,20 @@ let frame_code (fr : Instr.frame) : (Instr.t list, Error.t) result =
   match fr with
   | Instr.EffFrame (_, _) -> Error (Error.not_yet nowhere "M1")
 
-let rec emit (e : Ir.t) (f : int) (d : int) (k : cont) (s : st) :
+let rec emit (e : Ir.t) (f : scope) (d : int) (k : cont) (s : st) :
     (out, Error.t) result =
   match e with
   | Ir.ILit l ->
       let (i, s1) = const s (value_of_lit l) in
       Ok (finish k d (put s1 [ Instr.Const i ]))
-  | Ir.IVar n -> Ok (finish k d (put s [ Instr.Access (n + d - f) ]))
+  | Ir.IVar n -> Ok (finish k d (put s [ Instr.Access (d - f n) ]))
   | Ir.ILam (caps, body) -> emit_lam caps body f d k s
   | Ir.IFix (defs, body) -> emit_fix defs body f d k s
   | Ir.IApp (fn, args) -> emit_app fn args f d k s
   | Ir.ILet (v, b) ->
       let* a = emit v f d KFall s in
       let a1 = add a [ Instr.Push ] in
-      let* c = emit b (f + 1) (d + 1) k a1.st in
+      let* c = emit b (bind f d) (d + 1) k a1.st in
       let joined = { code = a1.code @ c.code; st = c.st } in
       Ok (drop_one k joined)
   | Ir.IIf (c, a, b) -> emit_if c a b f d k s
@@ -145,7 +141,7 @@ and drop_one (k : cont) (o : out) : out =
   | KFall -> add o [ Instr.Pop 1 ]
   | KRet -> o
 
-and emit_args (vs : Ir.t list) (f : int) (d : int) (s : st) :
+and emit_args (vs : Ir.t list) (f : scope) (d : int) (s : st) :
     (out, Error.t) result =
   Result.map fst
     (List.fold_left
@@ -160,7 +156,7 @@ and emit_args (vs : Ir.t list) (f : int) (d : int) (s : st) :
        (Ok ({ code = []; st = s }, 0))
        vs)
 
-and emit_app (fn : Ir.t) (args : Ir.t list) (f : int) (d : int) (k : cont)
+and emit_app (fn : Ir.t) (args : Ir.t list) (f : scope) (d : int) (k : cont)
     (s : st) : (out, Error.t) result =
   let n = List.length args in
   if Int.equal n 0 then fail "a call of the core names one argument at least"
@@ -172,7 +168,7 @@ and emit_app (fn : Ir.t) (args : Ir.t list) (f : int) (d : int) (k : cont)
     | KRet -> Ok (add joined [ Instr.AppTerm n ])
     | KFall -> Ok (add joined [ Instr.Apply n ])
 
-and emit_prim (p : Primop.t) (args : Ir.t list) (f : int) (d : int) (k : cont)
+and emit_prim (p : Primop.t) (args : Ir.t list) (f : scope) (d : int) (k : cont)
     (s : st) : (out, Error.t) result =
   let n = List.length args in
   if not (Int.equal n (Primop.arity p)) then
@@ -192,7 +188,7 @@ and split_last (vs : Ir.t list) (acc : Ir.t list) : (Ir.t list * Ir.t) option =
   | [ v ] -> Some (List.rev acc, v)
   | v :: more -> split_last more (v :: acc)
 
-and emit_if (c : Ir.t) (a : Ir.t) (b : Ir.t) (f : int) (d : int) (k : cont)
+and emit_if (c : Ir.t) (a : Ir.t) (b : Ir.t) (f : scope) (d : int) (k : cont)
     (s : st) : (out, Error.t) result =
   let* test = emit c f d KFall s in
   let s1 = { (test.st) with pc = test.st.pc + 1 } in
@@ -219,7 +215,7 @@ and emit_if (c : Ir.t) (a : Ir.t) (b : Ir.t) (f : int) (d : int) (k : cont)
    deeper.  In tail position each arm shuts with its own Return;
    otherwise each arm drops the payload and jumps to the one join, and
    the walk holds one address slot open until the join is known. *)
-and emit_switch (scrut : Ir.t) (cases : (int * Ir.t) list) (f : int) (d : int)
+and emit_switch (scrut : Ir.t) (cases : (int * Ir.t) list) (f : scope) (d : int)
     (k : cont) (s : st) : (out, Error.t) result =
   let* head = emit scrut f d KFall s in
   let s1 = { (head.st) with pc = head.st.pc + 1 } in
@@ -232,14 +228,14 @@ and close_arm (k : cont) (code : Instr.t list) (join_at : int) : Instr.t list =
   | KRet -> code
   | KFall -> code @ [ Instr.Branch join_at ]
 
-and emit_arms (cases : (int * Ir.t) list) (f : int) (d : int) (k : cont)
+and emit_arms (cases : (int * Ir.t) list) (f : scope) (d : int) (k : cont)
     (s : st) : (Instr.t list list * (int * int) list * st, Error.t) result =
   List.fold_left
     (fun (acc : (Instr.t list list * (int * int) list * st, Error.t) result)
          ((tag, body) : int * Ir.t) ->
       let* (code, addrs, s0) = acc in
       let at = s0.pc in
-      let* a = emit body (f + 1) (d + 1) k s0 in
+      let* a = emit body (bind f d) (d + 1) k s0 in
       let a1 = drop_one k a in
       let held = reserve k a1.st in
       Ok (code @ [ a1.code ], addrs @ [ (tag, at) ], held))
@@ -251,13 +247,13 @@ and reserve (k : cont) (s : st) : st =
   | KRet -> s
   | KFall -> { s with pc = s.pc + 1 }
 
-and emit_lam (caps : int list) (body : Ir.t) (f : int) (d : int) (k : cont)
+and emit_lam (caps : int list) (body : Ir.t) (f : scope) (d : int) (k : cont)
     (s : st) : (out, Error.t) result =
   let m = List.length caps in
   let (n, inner) = join body (m + 1) 1 in
   let entry = s.pc + 2 in
-  let* b = emit inner (n + m) (n + m) KRet { s with pc = entry + n } in
-  let pushes = cap_code (List.map (fun (dep : int) -> dep + d - f) caps) in
+  let* b = emit inner (frame (n + m)) (n + m) KRet { s with pc = entry + n } in
+  let pushes = cap_code caps f d in
   let after = b.st.pc + List.length pushes + 1 in
   Ok
     (finish k d
@@ -271,17 +267,17 @@ and emit_lam (caps : int list) (body : Ir.t) (f : int) (d : int) (k : cont)
 
 (* One group shares one capture list and one block, so the knot of
    M0-PLAN.md:191 has one write site (D-D-66). *)
-and emit_fix (defs : (int list * Ir.t) list) (body : Ir.t) (f : int) (d : int)
+and emit_fix (defs : (int list * Ir.t) list) (body : Ir.t) (f : scope) (d : int)
     (k : cont) (s : st) : (out, Error.t) result =
   let* caps = group_caps defs in
   let m = List.length caps in
   let* (members, addrs, s1) = emit_members defs m { s with pc = s.pc + 1 } in
-  let pushes = cap_code (List.map (fun (dep : int) -> dep + d - f) caps) in
+  let pushes = cap_code caps f d in
   let (pidx, s2) =
     const s1 (Value.Block (0, Value.of_list (List.map (fun (a : int) -> Value.Int a) addrs)))
   in
   let head = s1.pc + List.length pushes + 2 in
-  let* rest = emit body (f + 1) (d + 1) k { s2 with pc = head } in
+  let* rest = emit body (bind f d) (d + 1) k { s2 with pc = head } in
   Ok
     (drop_one k
        {
@@ -311,7 +307,7 @@ and emit_members (defs : (int list * Ir.t) list) (m : int) (s : st) :
       let* (code, addrs, s0) = acc in
       let entry = s0.pc + 1 in
       let (n, inner) = join body (m + 2) 1 in
-      let* b = emit inner (n + m + 1) (n + m + 1) KRet { s0 with pc = entry + n } in
+      let* b = emit inner (frame (n + m + 1)) (n + m + 1) KRet { s0 with pc = entry + n } in
       Ok
         ( code @ [ Instr.Restart ] @ grabs n @ b.code,
           addrs @ [ entry ],
@@ -320,7 +316,7 @@ and emit_members (defs : (int list * Ir.t) list) (m : int) (s : st) :
     defs
 
 let assemble (e : Ir.t) : (Instr.t array * Value.value array, Error.t) result =
-  let* o = emit e 0 0 KFall { pc = 0; pool = []; psize = 0 } in
+  let* o = emit e (frame 0) 0 KFall { pc = 0; pool = []; psize = 0 } in
   Ok
     ( Value.of_list (o.code @ [ Instr.Stop ]),
       Value.of_list (List.rev o.st.pool) )

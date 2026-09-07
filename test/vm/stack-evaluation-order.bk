@@ -1,0 +1,4 @@
+let h a b = a + b
+let mark n = let shown = print_int n in n
+let shown = print_int (h (mark 1) (let z = mark 2 in z))
+let main = print_newline ()
