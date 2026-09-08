@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 181 programs with their goldens, fifteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and twenty-nine deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and pattern pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 194 programs with their goldens, fifteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and thirty-one deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and pattern pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -466,7 +466,7 @@ the exact `Not_yet 1:1-1:1 the form arrives at M1` diagnostic:
 
 | Pair | Origin | Guard |
 | --- | --- | --- |
-| `record-pattern-rest` | NEW | `lower_chain` refuses `PRec` with a rest binder. |
+| `record-pattern-rest` | MOVED | The closed residual now runs as `test/vm/record-rest-basic`; `record-rest-open` replaces this refusal. |
 | `record-pattern-reader-field` | NEW | `lower_match` refuses a visible embedded reader with an open record domain. |
 | `record-pattern-reader-annotation` | NEW | The same guard strips the enclosing record annotation before inferring the reader type. |
 
@@ -477,3 +477,36 @@ the exact `Not_yet 1:1-1:1 the form arrives at M1` diagnostic:
 | `test/vm/record-pattern-reader-whole.bk` and `.out` | none | NEW | A match binds the whole record and reads one closed field, while a sibling field holds a reader over an open record.  No arm binds a record field, so the reader guard does not apply.  Hand derived golden `42` with no final newline. |
 | `test/vm/variant-match-reader-payload.bk` and `.out` | none | NEW | A variant dispatch binds a payload that holds a reader field.  The dispatch reads a closed field of the payload and lowers, because no arm binds a record field.  Hand derived golden `7` with no final newline. |
 | `test/neg/record-pattern-partial-label.bk` and `.err` | none | NEW | A record pattern that omits label `b` of a closed two field row fails the checker with `MissingLabel`, and a following whole-value arm does not repair it.  The twin pins the label totality rule of the record pattern. |
+
+### Closed record rest continuation, 2026-09-08
+
+`surface/lower.ml` adds `lower_rest` and connects it to the existing successful
+field continuation. `surface/infer.ml` groups equivalent `is_value` cases.
+Both changes are NEW; no external implementation was copied. The counted
+paths and limits, IR constructors and machine instructions remain unchanged.
+
+The `rest_fixtures` agent derived these stdout goldens before execution.
+Each row names a `.bk`/`.out` pair under `test/vm`, and every output number
+is followed by a newline. Derivations and initial hashes are retained in
+`/Users/oobi/Documents/gpt2/brisk-rest-evidence/fixtures.md`.
+
+| Pair | Origin | Witness and stdout lines |
+| --- | --- | --- |
+| `record-rest-basic` | MOVED | Former `record-pattern-rest` refusal with a final newline added. `7`. |
+| `record-rest-order` | NEW | Input, pattern and residual order. `4321`, `8765`. |
+| `record-rest-nested` | NEW | Residuals inside records and variant payloads. `4317`, `8765`, `90007`. |
+| `record-rest-empty` | NEW | Empty residuals, empty patterns and extension. `107`, `111`, `15`. |
+| `record-rest-occurrences` | NEW | Sparse padding removal and residual occurrence renumbering. `4372`, `6584`, `437211`, `658422`. |
+| `record-rest-repeated` | NEW | Repeated constraints consume one shared occurrence. `327`, `662`. |
+| `record-rest-result-layout` | NEW | Returned residuals reconcile opposite branch layouts. `43`, `65`. |
+| `record-rest-capture-stack-shadow` | NEW | Captures below argument pushes and failed nested rest scope. `29`, `48`, `12`, `42`. |
+| `record-rest-effects` | NEW | Construction effects execute once through field failures. `0`, `10`, `100`, `1`, `11`, `202`, `2`, `12`, `302`. |
+| `record-rest-tail` | NEW | 100000 calls through successful and fallback arms. `12`, `114`. |
+| `record-rest-tail-reader` | NEW | The same depth with an outer open record reader. `15`, `118`. |
+| `record-rest-reader-use` | NEW | Residual passed to a reader and a retained closed function field. `32`, `41`. |
+| `record-rest-nested-result` | NEW | The `rest_review` agent's independent residual result probe combines boolean, variant, nested record and closed function layouts across two branches. `164`, `308`, from `100 + 43 + 21` and `200 + 43 + 65`. |
+
+`test/lower-neg/record-rest-open.bk` and `.err` are NEW. An integer-returning
+function destructures an open record, so `lower_chain` refuses the unknown
+row layout. The harness requires successful parsing and checking before
+matching `Not_yet 1:1-1:1 the form arrives at M1` exactly.

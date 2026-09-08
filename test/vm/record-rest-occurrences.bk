@@ -1,0 +1,7 @@
+let show n = let shown = print_int n in print_newline ()
+let sparse r = match (r : { l : int, z : int, l : bool, l : string, l : int, extra : int }) with | { l ^ 2 = text | rest } -> string_length text + 10 * rest.l + 100 * rest.z + 1000 * rest.extra
+let lower r = match (r : { l : int, z : int, l : bool, l : string, l : int, extra : int }) with | { l ^ 1 = flag, l = first | rest } -> first + (if flag then 10 else 20) + 100 * string_length rest.l + 1000 * ({ rest - l }).l + 10000 * rest.z + 100000 * rest.extra
+let a = show (sparse { l = 1, l = true, z = 3, l = "ok", extra = 4, l = 7 })
+let b = show (sparse { extra = 6, l = 2, z = 5, l = false, l = "long", l = 8 })
+let c = show (lower { l = 1, l = true, z = 3, l = "ok", extra = 4, l = 7 })
+let main = show (lower { extra = 6, l = 2, z = 5, l = false, l = "long", l = 8 })

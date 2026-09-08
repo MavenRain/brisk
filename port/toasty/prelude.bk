@@ -1,0 +1,226 @@
+(* The toasty port, the shared library.  Date 2026-09-08. *)
+(* Source: /Users/oobi/Documents/toasty at 7bd502cb, read only. *)
+(* M0 has one namespace and no import form, so one file is one program. *)
+(* build.sh joins this library with one example before a run (D-P-1). *)
+
+(* The table is a church left fold.  empty answers the seed. *)
+(* snoc appends, so a fold reads the rows in the order they arrive. *)
+let empty = fun f z -> z
+let snoc l x = fun f z -> f (l f z) x
+
+(* The table combinators keep the accumulator of the model they walk (D-P-2). *)
+(* filter drops a row, map rewrites a row, each walks the table for effect. *)
+let filter p l = fun f z -> l (fun a x -> if p x then f a x else a) z
+let map g l = fun f z -> l (fun a x -> f a (g x)) z
+let each g zero l = let walked = l (fun a x -> let shown = g x in a) zero in ()
+let count read bump zero l = read (l bump zero)
+
+(* The models are closed records.  Each holds the union of the fields the *)
+(* four examples touch, so an example ignores a field it does not read. *)
+(* User: hello-toasty, composite-key and todo-with-cli read id, name and *)
+(* email;  hello-toasty reads moto. *)
+(* A create! literal names the fields it sets and the driver stamps the *)
+(* id, which is the record extension form over a closed literal. *)
+let mk_user id name email moto = ({ id = id | { name = name, email = email, moto = moto } } : { id : int, name : string, email : string, moto : < some : string, none : unit > })
+
+(* Todo: hello-toasty reads id, user_id and title;  todo-with-cli reads *)
+(* completed;  composite-key reads order. *)
+let mk_todo id user_id title completed order = ({ id = id, user_id = user_id, title = title, completed = completed, order = order } : { id : int, user_id : int, title : string, completed : bool, order : int })
+
+(* Profile: user-has-one-profile reads id and the optional user_id. *)
+let mk_profile id user_id = ({ id = id, user_id = user_id } : { id : int, user_id : < some : int, none : unit > })
+
+(* The composite-key Todo declares no completed field and the todo-with-cli *)
+(* Todo declares no order field.  A view drops the label the example does *)
+(* not declare, which is the record restriction form over a closed row. *)
+let todo_view_ck t = { (t : { id : int, user_id : int, title : string, completed : bool, order : int }) - completed }
+let todo_view_cli t = { (t : { id : int, user_id : int, title : string, completed : bool, order : int }) - order }
+
+(* Every selection reads a closed record, so the lowering keeps a static *)
+(* offset (D-P-6).  A bare selection on a lambda parameter has no closed *)
+(* reader domain and the lowering refuses it. *)
+let user_id u = (u : { id : int, name : string, email : string, moto : < some : string, none : unit > }).id
+let user_name u = (u : { id : int, name : string, email : string, moto : < some : string, none : unit > }).name
+let user_email u = (u : { id : int, name : string, email : string, moto : < some : string, none : unit > }).email
+let user_moto u = (u : { id : int, name : string, email : string, moto : < some : string, none : unit > }).moto
+
+(* The todo readers. *)
+let todo_id t = (t : { id : int, user_id : int, title : string, completed : bool, order : int }).id
+let todo_user_id t = (t : { id : int, user_id : int, title : string, completed : bool, order : int }).user_id
+let todo_title t = (t : { id : int, user_id : int, title : string, completed : bool, order : int }).title
+let todo_completed t = (t : { id : int, user_id : int, title : string, completed : bool, order : int }).completed
+let todo_order t = (t : { id : int, user_id : int, title : string, completed : bool, order : int }).order
+
+(* The profile readers. *)
+let profile_id p = (p : { id : int, user_id : < some : int, none : unit > }).id
+let profile_user_id p = (p : { id : int, user_id : < some : int, none : unit > }).user_id
+
+(* One accumulator record serves every fold over one model (D-P-2). *)
+(* n counts, found marks a hit, v carries the row a lookup answers. *)
+let ua_n a = (a : { n : int, found : bool, v : { id : int, name : string, email : string, moto : < some : string, none : unit > } }).n
+let ua_found a = (a : { n : int, found : bool, v : { id : int, name : string, email : string, moto : < some : string, none : unit > } }).found
+let ua_v a = (a : { n : int, found : bool, v : { id : int, name : string, email : string, moto : < some : string, none : unit > } }).v
+
+(* The todo accumulator. *)
+let ta_n a = (a : { n : int, found : bool, v : { id : int, user_id : int, title : string, completed : bool, order : int } }).n
+let ta_found a = (a : { n : int, found : bool, v : { id : int, user_id : int, title : string, completed : bool, order : int } }).found
+let ta_v a = (a : { n : int, found : bool, v : { id : int, user_id : int, title : string, completed : bool, order : int } }).v
+
+(* The profile accumulator. *)
+let pa_n a = (a : { n : int, found : bool, v : { id : int, user_id : < some : int, none : unit > } }).n
+let pa_found a = (a : { n : int, found : bool, v : { id : int, user_id : < some : int, none : unit > } }).found
+let pa_v a = (a : { n : int, found : bool, v : { id : int, user_id : < some : int, none : unit > } }).v
+
+(* A blank row seeds an accumulator.  A lookup that misses never reads it. *)
+let user_blank = mk_user 0 "" "" (< none () >)
+let todo_blank = mk_todo 0 0 "" false 0
+let profile_blank = mk_profile 0 (< none () >)
+
+(* The three seeds, one per model. *)
+let user_zero = { n = 0, found = false, v = user_blank }
+let todo_zero = { n = 0, found = false, v = todo_blank }
+let profile_zero = { n = 0, found = false, v = profile_blank }
+
+(* The three counters.  Each rebuilds its accumulator field by field. *)
+let user_bump = fun a x -> { n = ua_n a + 1, found = ua_found a, v = ua_v a }
+let todo_bump = fun a x -> { n = ta_n a + 1, found = ta_found a, v = ta_v a }
+let profile_bump = fun a x -> { n = pa_n a + 1, found = pa_found a, v = pa_v a }
+let user_count l = count ua_n user_bump user_zero l
+let todo_count l = count ta_n todo_bump todo_zero l
+let profile_count l = count pa_n profile_bump profile_zero l
+
+(* The three lookups.  The first row that answers the predicate wins. *)
+let user_lookup p l = l (fun a x -> if ua_found a then a else if p x then { n = ua_n a, found = true, v = x } else a) user_zero
+let todo_lookup p l = l (fun a x -> if ta_found a then a else if p x then { n = ta_n a, found = true, v = x } else a) todo_zero
+let profile_lookup p l = l (fun a x -> if pa_found a then a else if p x then { n = pa_n a, found = true, v = x } else a) profile_zero
+
+(* The three walkers print one row each. *)
+let user_each g l = each g user_zero l
+let todo_each g l = each g todo_zero l
+let profile_each g l = each g profile_zero l
+
+(* option is a variant with a some arm and a none arm. *)
+(* result is a variant with an ok arm and an err arm. *)
+(* A match reads a closed variant row, so every scrutinee carries its row. *)
+let str_opt_is_some o = match (o : < some : string, none : unit >) with | < some s > -> true | < none u > -> false
+let int_opt_is_some o = match (o : < some : int, none : unit >) with | < some i > -> true | < none u > -> false
+let int_opt_or o d = match (o : < some : int, none : unit >) with | < some i > -> i | < none u > -> d
+let user_res_is_err r = match (r : < ok : { id : int, name : string, email : string, moto : < some : string, none : unit > }, err : string >) with | < ok u > -> false | < err e > -> true
+let user_res_or_blank r = match (r : < ok : { id : int, name : string, email : string, moto : < some : string, none : unit > }, err : string >) with | < ok u > -> u | < err e > -> user_blank
+let todo_res_is_err r = match (r : < ok : { id : int, user_id : int, title : string, completed : bool, order : int }, err : string >) with | < ok t > -> false | < err e > -> true
+let todo_res_or_blank r = match (r : < ok : { id : int, user_id : int, title : string, completed : bool, order : int }, err : string >) with | < ok t > -> t | < err e > -> todo_blank
+let profile_opt_is_some o = match (o : < some : { id : int, user_id : < some : int, none : unit > }, none : unit >) with | < some p > -> true | < none u > -> false
+let profile_opt_or_blank o = match (o : < some : { id : int, user_id : < some : int, none : unit > }, none : unit >) with | < some p > -> p | < none u > -> profile_blank
+
+(* The db record holds the id counter and one table per model. *)
+(* A db value is always a record literal, so a call site reads a closed row. *)
+let db_empty = { next = 1, users = empty, todos = empty, profiles = empty }
+
+(* push_schema is the identity.  The port starts from an empty db, so a *)
+(* reset has nothing to drop. *)
+let push_schema db = db
+
+(* The unique checks.  create_user holds the unique email of the Rust *)
+(* model, create_profile holds the unique profile.user_id. *)
+let user_has_email e l = ua_found (user_lookup (fun u -> string_compare (user_email u) e == 0) l)
+let profile_has_user k l = pa_found (profile_lookup (fun p -> int_opt_or (profile_user_id p) 0 == k) l)
+
+(* The three creators draw the id from the counter (D-P-4). *)
+(* A creator that meets a unique violation answers the db unchanged, so *)
+(* the caller reads the counter to see the refusal (D-P-6). *)
+let create_user db name email = if user_has_email email db.users then db else { next = db.next + 1, users = snoc db.users (mk_user db.next name email (< none () >)), todos = db.todos, profiles = db.profiles }
+let create_user_moto db name email moto = if user_has_email email db.users then db else { next = db.next + 1, users = snoc db.users (mk_user db.next name email moto), todos = db.todos, profiles = db.profiles }
+let create_todo db user_id title completed order = { next = db.next + 1, users = db.users, todos = snoc db.todos (mk_todo db.next user_id title completed order), profiles = db.profiles }
+let create_profile db user_id = if profile_has_user user_id db.profiles then db else { next = db.next + 1, users = db.users, todos = db.todos, profiles = snoc db.profiles (mk_profile db.next (< some user_id >)) }
+
+(* The three getters answer a result.  A miss answers the err arm. *)
+let get_user_by_id db i = let a = user_lookup (fun u -> user_id u == i) db.users in if ua_found a then (< ok (ua_v a) > : < ok : { id : int, name : string, email : string, moto : < some : string, none : unit > }, err : string >) else (< err "user not found" > : < ok : { id : int, name : string, email : string, moto : < some : string, none : unit > }, err : string >)
+let get_user_by_email db e = let a = user_lookup (fun u -> string_compare (user_email u) e == 0) db.users in if ua_found a then (< ok (ua_v a) > : < ok : { id : int, name : string, email : string, moto : < some : string, none : unit > }, err : string >) else (< err "user not found" > : < ok : { id : int, name : string, email : string, moto : < some : string, none : unit > }, err : string >)
+let get_todo_by_id db i = let a = todo_lookup (fun t -> todo_id t == i) db.todos in if ta_found a then (< ok (ta_v a) > : < ok : { id : int, user_id : int, title : string, completed : bool, order : int }, err : string >) else (< err "todo not found" > : < ok : { id : int, user_id : int, title : string, completed : bool, order : int }, err : string >)
+
+(* The two updates rebuild the closed record field by field (D-P-3). *)
+(* An open row in a return position is refused at lowering. *)
+let update_user_name db i name = { next = db.next, users = map (fun x -> if user_id x == i then mk_user (user_id x) name (user_email x) (user_moto x) else x) db.users, todos = db.todos, profiles = db.profiles }
+let update_todo_completed db i done_ = { next = db.next, users = db.users, todos = map (fun x -> if todo_id x == i then mk_todo (todo_id x) (todo_user_id x) (todo_title x) done_ (todo_order x) else x) db.todos, profiles = db.profiles }
+
+(* The two deletes are filters over the table of the model. *)
+let delete_user db i = { next = db.next, users = filter (fun x -> user_id x != i) db.users, todos = db.todos, profiles = db.profiles }
+let delete_todo db i = { next = db.next, users = db.users, todos = filter (fun x -> todo_id x != i) db.todos, profiles = db.profiles }
+
+(* The four relation helpers.  A relation is a filter or a lookup. *)
+(* user_todos is the has_many, todo_user is the belongs_to, user_profile *)
+(* is the has_one, unlink_todo is the remove of hello-toasty:141. *)
+let user_todos db u = filter (fun t -> todo_user_id t == user_id u) db.todos
+let todo_user db t = get_user_by_id db (todo_user_id t)
+let user_profile db u = let a = profile_lookup (fun p -> int_opt_or (profile_user_id p) 0 == user_id u) db.profiles in if pa_found a then (< some (pa_v a) > : < some : { id : int, user_id : < some : int, none : unit > }, none : unit >) else (< none () > : < some : { id : int, user_id : < some : int, none : unit > }, none : unit >)
+let unlink_todo db i = { next = db.next, users = db.users, todos = filter (fun x -> todo_id x != i) db.todos, profiles = db.profiles }
+
+(* The list helpers answer the whole table of a model. *)
+let all_users db = db.users
+let all_todos db = db.todos
+let all_profiles db = db.profiles
+
+(* The id printer.  A Rust #[auto] id is a random v4 uuid, so the port *)
+(* draws every id from the db counter and prints it in the uuid shape *)
+(* with the counter in the last group, zero padded to twelve digits (D-P-4). *)
+let rec digits n = if n < 10 then 1 else 1 + digits (n / 10)
+let rec zeros k = if k == 0 then () else let mark = print_string "0" in zeros (k - 1)
+let print_id n = let head = print_string "00000000-0000-0000-0000-" in let pad = zeros (12 - digits n) in print_int n
+
+(* The quoting printer.  Rust prints a String with quotes under {:?}. *)
+let print_quoted s = let open_ = print_string "\"" in let body = print_string s in print_string "\""
+
+(* The option printers.  {:?} of None is None and of Some is Some("x"). *)
+(* {:#?} of Some breaks the payload over lines with a trailing comma. *)
+let print_moto m = match (m : < some : string, none : unit >) with | < some s > -> let head = print_string "Some(" in let body = print_quoted s in print_string ")" | < none u > -> print_string "None"
+let pretty_moto m = match (m : < some : string, none : unit >) with | < some s > -> let head = print_string "Some(\n        " in let body = print_quoted s in print_string ",\n    )" | < none u > -> print_string "None"
+
+(* The user printers.  debug_user is {:?} and pretty_user is {:#?}. *)
+(* The todos field is a Deferred, and an unloaded Deferred prints *)
+(* <not loaded> (TOASTY/crates/toasty/src/schema/deferred.rs:189-196). *)
+let debug_user u =
+  let a = print_string "User { id: " in
+  let b = print_id (user_id u) in
+  let c = print_string ", name: " in
+  let d = print_quoted (user_name u) in
+  let e = print_string ", email: " in
+  let f = print_quoted (user_email u) in
+  let g = print_string ", todos: <not loaded>, moto: " in
+  let h = print_moto (user_moto u) in
+  print_string " }"
+
+let pretty_user u =
+  let a = print_string "User {\n    id: " in
+  let b = print_id (user_id u) in
+  let c = print_string ",\n    name: " in
+  let d = print_quoted (user_name u) in
+  let e = print_string ",\n    email: " in
+  let f = print_quoted (user_email u) in
+  let g = print_string ",\n    todos: <not loaded>,\n    moto: " in
+  let h = pretty_moto (user_moto u) in
+  print_string ",\n}"
+
+(* The todo printers follow the field order of the hello-toasty model: *)
+(* id, user_id, user, title.  The other two examples declare their own *)
+(* order, so each of them carries its own printer. *)
+let debug_todo t =
+  let a = print_string "Todo { id: " in
+  let b = print_id (todo_id t) in
+  let c = print_string ", user_id: " in
+  let d = print_id (todo_user_id t) in
+  let e = print_string ", user: <not loaded>, title: " in
+  let f = print_quoted (todo_title t) in
+  print_string " }"
+
+let pretty_todo t =
+  let a = print_string "Todo {\n    id: " in
+  let b = print_id (todo_id t) in
+  let c = print_string ",\n    user_id: " in
+  let d = print_id (todo_user_id t) in
+  let e = print_string ",\n    user: <not loaded>,\n    title: " in
+  let f = print_quoted (todo_title t) in
+  print_string ",\n}"
+
+(* The assertion printer.  assert! has no port, so the failing arm prints *)
+(* one line the golden does not hold (D-P-5). *)
+let check ok text = if ok then () else let head = print_string "assertion failed: " in let body = print_string text in print_newline ()

@@ -1,0 +1,6 @@
+let show n = let shown = print_int n in print_newline ()
+let get r = r.n
+let combine r = (r : { b : int, a : int }).a + 10 * r.b
+let read r = match (r : { drop : int, n : int, pad : int, fn : { b : int, a : int } -> int }) with | { drop = value | rest } -> get rest + rest.pad + rest.fn { a = value, b = 2 }
+let a = show (read { pad = 3, fn = combine, drop = 4, n = 5 })
+let main = show (read { n = 6, drop = 7, fn = combine, pad = 8 })

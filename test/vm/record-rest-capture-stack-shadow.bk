@@ -1,0 +1,9 @@
+let show n = let shown = print_int n in print_newline ()
+let add a b = a + b
+let get r = r.n
+let read rest r = add 1 (let step = 2 in match (r : { item : { head : int, keep : int }, gate : int, extra : int }) with | { item = { head = value | rest }, gate = 0 | outside } -> let captured = fun n -> rest.keep + outside.extra + value + step + n in captured 3 | _ -> let captured = fun n -> get rest + n + step in captured 3)
+let probe rest r = match (r : { x : int, gate : int, extra : int }) with | { x = value, gate = 0 | rest } -> rest.extra + value | _ -> get rest
+let a = show (read { pad = 8, n = 42 } { extra = 11, item = { keep = 7, head = 5 }, gate = 0 })
+let b = show (read { n = 42, pad = 8 } { gate = 1, item = { head = 5, keep = 7 }, extra = 11 })
+let c = show (probe { pad = 8, n = 42 } { extra = 7, gate = 0, x = 5 })
+let main = show (probe { n = 42, pad = 8 } { gate = 1, x = 5, extra = 7 })

@@ -1,0 +1,14 @@
+created user; name="John Doe"; email="john@example.com"
+created todo; title="finish toasty"; order=0
+created todo; title="retire"; order=1
+created todo; title="play golf"; order=2
+====================
+--- QUERY ---
+====================
+TODO = Todo {
+    id: 00000000-0000-0000-0000-000000000003,
+    title: "retire",
+    order: 1,
+    user: <not loaded>,
+    user_id: 00000000-0000-0000-0000-000000000001,
+}

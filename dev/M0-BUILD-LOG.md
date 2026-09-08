@@ -1682,3 +1682,48 @@ The counted core falls to 1999 of 2000 lines and the machine stays at
 795 of 800. `main_floor` rises to 181, the negative twin floor rises to 37,
 and the two new VM pairs join the named fixtures. No gate is weakened, no
 IR arm or instruction is added, and the machine sources are unchanged.
+
+## Closed record rest continuation, 2026-09-08
+
+This continuation starts at clean commit `4f16e6e`. Matches over closed
+records now bind residual records after their field tests succeed, including
+nested record and variant patterns. The source checker and the machine keep
+their existing semantics. Stage D remains in progress.
+
+| Decision | Implementation | Reason |
+| --- | --- | --- |
+| D-D-C45 | Pass each successful record field continuation through `lower_rest`. | Rest construction belongs after every field test, while failed tests retain the existing ordered fallback scope. |
+| D-D-C46 | Filter numbered physical fields by each pattern label's greatest occurrence index. | Sparse indices consume implicit padding slots, and repeated constraints on one occurrence consume it only once, matching `Infer.pat_slot`. |
+| D-D-C47 | Rebuild the residual in producer order and bind it through the existing `PVar` path with a concrete closed row. | Its type and physical fields agree; closure captures, result conversion and reader calls reuse established conventions. |
+| D-D-C48 | Preserve the open record and embedded reader guards, and replace the former closed rest refusal with an open record pattern refusal. | An unknown residual layout still has no complete transport convention. |
+| D-D-C49 | Group identical exhaustive branches of `Infer.is_value`. | This removes duplicate cases without changing value generalization, counted files or the 2000-line cap. |
+
+The `rest_fixtures` agent wrote twelve programs and arithmetic goldens before
+running the compiler or VM. Its initial golden hashes and derivations are
+recorded in `/Users/oobi/Documents/gpt2/brisk-rest-evidence/fixtures.md`.
+Validation uses `/Users/oobi/Documents/gpt2/brisk`, a copy of the clean source
+checkout. The original checkout is checked again before applying the final
+patch and staging all Brisk changes.
+
+The first targeted run passed eleven of twelve programs. The remaining
+program used the reserved word `take` as a label; renaming it to `head`
+made it pass without changing its golden. The `rest_review` agent's separate
+permutation, nested fallback and nested result probes also pass. Its nested
+result probe becomes the thirteenth permanent pair, after adding a closed
+variant annotation to its helper. The two new deep regressions use 20 and
+22 stack slots at 100000 calls. All four targeted mutants build and are
+detected, as recorded in `MUTATION-LOG.md`.
+
+The full seven-leg battery passed before the thirteenth fixture was promoted:
+capture `brisk-rest-evidence/captures/run-iwD2sK` reports `GATES-OK`, 46 parse
+fixtures, 19 checker positives, 37 negative twins, 193 executable programs,
+15 exact lowering refusals and all 22 instructions emitted and executed.
+The counted core is 1997/2000 lines and the machine is 795/800. The run's
+denominator is 359.757 raw milliseconds per kloc. Its corpus hashes and
+compiler pins remain unchanged; this is not a Stage E speed claim.
+
+After the thirteenth fixture and the 194-program floor were added, the final
+SUITE-VM leg passed in capture `brisk-rest-evidence/captures/run-SPfZh4`:
+213 files, 194 programs and matching goldens, 19 skipped checker fixtures,
+15 exact refusals, and 22/22 instructions emitted and executed. Its named
+stack checks include all thirty-one deep regressions plus `tailrec`.

@@ -1,0 +1,131 @@
+(* todo-with-cli, the port of *)
+(* TOASTY/examples/todo-with-cli/src/bin/app.rs.  Date 2026-09-08. *)
+(* The port takes app.rs and not cli.rs, because cli.rs reads argv. *)
+(* The Rust main is transliterated top to bottom. *)
+(* The db is threaded as let db1 = ... in, because M0 has no mutation. *)
+(* Every Rust output line is one print sequence in the same order. *)
+(* The Rust app connects to sqlite:./test.db through migrations, so its *)
+(* final count depends on the file on disk.  The port starts from an *)
+(* empty db, so its final count is deterministic (2 facts). *)
+
+(* The Todo of this example declares id, user_id, the belongs_to user, *)
+(* title and completed, and it declares no order field.  The view of the *)
+(* prelude drops order, which is the record restriction form (D-P-9). *)
+let cli_id v = (v : { id : int, user_id : int, title : string, completed : bool }).id
+let cli_user_id v = (v : { id : int, user_id : int, title : string, completed : bool }).user_id
+let cli_title v = (v : { id : int, user_id : int, title : string, completed : bool }).title
+let cli_completed v = (v : { id : int, user_id : int, title : string, completed : bool }).completed
+
+(* The status mark of the listing.  A completed todo carries U+2713, the *)
+(* three-byte sequence E2 9C 93, and an open todo carries one space. *)
+let status_mark v = if cli_completed v then "✓" else " "
+
+(* The Rust main calls create_db, which opens the db and holds the *)
+(* schema.  The port starts from the empty db (D-P-1). *)
+let main =
+  let db0 = push_schema db_empty in
+
+  (* println!("==> Creating users...") *)
+  let p1 = print_string "==> Creating users..." in
+  let p2 = print_newline () in
+
+  (* create!(User { name: "Alice", email: "alice@example.com" }) *)
+  let u1_id = db0.next in
+  let db1 = create_user db0 "Alice" "alice@example.com" in
+
+  (* create!(User { name: "Bob", email: "bob@example.com" }) *)
+  let u2_id = db1.next in
+  let db2 = create_user db1 "Bob" "bob@example.com" in
+  let u1 = user_res_or_blank (get_user_by_id db2 u1_id) in
+  let u2 = user_res_or_blank (get_user_by_id db2 u2_id) in
+
+  (* println!("Created users: {} and {}", user1.name, user2.name) *)
+  let p3 = print_string "Created users: " in
+  let p4 = print_string (user_name u1) in
+  let p5 = print_string " and " in
+  let p6 = print_string (user_name u2) in
+  let p7 = print_newline () in
+
+  (* println!("\n==> Creating todos...") *)
+  let p8 = print_string "\n==> Creating todos..." in
+  let p9 = print_newline () in
+
+  (* create!(in user1.todos() { title: "Learn Rust", completed: false }) *)
+  let t1_id = db2.next in
+  let db3 = create_todo db2 u1_id "Learn Rust" false 0 in
+
+  (* create!(in user1.todos() { title: "Build a web app", completed: false }) *)
+  let t2_id = db3.next in
+  let db4 = create_todo db3 u1_id "Build a web app" false 0 in
+
+  (* create!(in user2.todos() { title: "Write documentation", completed: true }) *)
+  let db5 = create_todo db4 u2_id "Write documentation" true 0 in
+
+  (* println!("Created {} todos", 3) *)
+  let p10 = print_string "Created " in
+  let p11 = print_int 3 in
+  let p12 = print_string " todos" in
+  let p13 = print_newline () in
+
+  (* println!("\n==> Listing all users and their todos...") *)
+  let p14 = print_string "\n==> Listing all users and their todos..." in
+  let p15 = print_newline () in
+
+  (* let users = User::all().exec(&mut db).await? *)
+  let users = all_users db5 in
+
+  (* for user in users { println!("\nUser: {} ({})", user.name, user.email) *)
+  (* and the inner for over user.todos().exec(&mut db).await? } *)
+  let p16 = user_each (fun u ->
+    let a = print_string "\nUser: " in
+    let b = print_string (user_name u) in
+    let c = print_string " (" in
+    let d = print_string (user_email u) in
+    let e = print_string ")" in
+    let f = print_newline () in
+    todo_each (fun t ->
+      let v = todo_view_cli t in
+      let g = print_string "  [" in
+      let h = print_string (status_mark v) in
+      let i = print_string "] " in
+      let j = print_string (cli_title v) in
+      print_newline ()) (user_todos db5 u)) users in
+
+  (* println!("\n==> Updating a todo...") *)
+  let p17 = print_string "\n==> Updating a todo..." in
+  let p18 = print_newline () in
+
+  (* Todo::get_by_id(&mut db, &todo1.id) then update().completed(true) *)
+  let todo1 = todo_res_or_blank (get_todo_by_id db5 t1_id) in
+  let db6 = update_todo_completed db5 t1_id true in
+
+  (* println!("Marked '{}' as completed", todo.title) *)
+  let p19 = print_string "Marked '" in
+  let p20 = print_string (todo_title todo1) in
+  let p21 = print_string "' as completed" in
+  let p22 = print_newline () in
+
+  (* println!("\n==> Deleting a todo...") *)
+  let p23 = print_string "\n==> Deleting a todo..." in
+  let p24 = print_newline () in
+
+  (* Todo::get_by_id(&mut db, &todo2.id) then the print then delete() *)
+  let todo2 = todo_res_or_blank (get_todo_by_id db6 t2_id) in
+  let p25 = print_string "Deleting '" in
+  let p26 = print_string (todo_title todo2) in
+  let p27 = print_string "'" in
+  let p28 = print_newline () in
+  let db7 = delete_todo db6 t2_id in
+
+  (* println!("\n==> Final count...") *)
+  let p29 = print_string "\n==> Final count..." in
+  let p30 = print_newline () in
+
+  (* Todo::all().exec(&mut db).await? then println!("Total todos remaining: {}", len) *)
+  let p31 = print_string "Total todos remaining: " in
+  let p32 = print_int (todo_count (all_todos db7)) in
+  let p33 = print_newline () in
+
+  (* println!("\n>>> Application completed successfully! <<<") *)
+  let p34 = print_string "\n>>> Application completed successfully! <<<" in
+  print_newline ()

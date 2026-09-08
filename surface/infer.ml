@@ -70,31 +70,14 @@ let name_of_binop (op : Ast.binop) : Ident.t =
    neither does a form that reads or writes a record of another. *)
 let rec is_value (e : Ast.expr) : bool =
   match e with
-  | Ast.Lit _ -> true
-  | Ast.Var _ -> true
-  | Ast.Lam (_, _) -> true
+  | Ast.Lit _ | Ast.Var _ | Ast.Lam (_, _) -> true
   | Ast.Rec fs ->
       not (List.exists (fun ((_, x) : Label.t * Ast.expr) -> not (is_value x)) fs)
-  | Ast.Inj (_, _, x) -> is_value x
-  | Ast.Ann (x, _) -> is_value x
-  | Ast.App (_, _) -> false
-  | Ast.Let (_, _, _) -> false
-  | Ast.LetRec (_, _) -> false
-  | Ast.If (_, _, _) -> false
-  | Ast.RecExt (_, _, _) -> false
-  | Ast.RecRes (_, _) -> false
-  | Ast.Sel (_, _) -> false
-  | Ast.Take (_, _) -> false
-  | Ast.Match (_, _) -> false
-  | Ast.Bin (_, _, _) -> false
-  | Ast.Use (_, _, _) -> false
-  | Ast.Handle (_, _) -> false
-  | Ast.Scope _ -> false
-  | Ast.Spawn _ -> false
-  | Ast.Join _ -> false
-  | Ast.Quote _ -> false
-  | Ast.Splice _ -> false
-  | Ast.FoldRow _ -> false
+  | Ast.Inj (_, _, x) | Ast.Ann (x, _) -> is_value x
+  | Ast.App _ | Ast.Let _ | Ast.LetRec _ | Ast.If _ | Ast.RecExt _
+  | Ast.RecRes _ | Ast.Sel _ | Ast.Take _ | Ast.Match _ | Ast.Bin _
+  | Ast.Use _ | Ast.Handle _ | Ast.Scope _ | Ast.Spawn _ | Ast.Join _
+  | Ast.Quote _ | Ast.Splice _ | Ast.FoldRow _ -> false
 
 (* An instantiation renames the bound variables of a scheme and leaves
    the free ones alone, so a free variable keeps its store binding. *)

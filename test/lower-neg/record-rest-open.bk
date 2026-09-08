@@ -1,0 +1,2 @@
+let read r = match r with | { x = n | rest } -> n + rest.y
+let main = print_int (read { x = 3, y = 4 })

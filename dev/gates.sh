@@ -235,7 +235,7 @@ leg_suite_check () {
 # masking a removed regression.
 leg_suite_vm () {
   local out code line n r s k m census stack peak fixture tail_fixture
-  local main_floor=181
+  local main_floor=194
   local tail_files=(
     $ROOT/test/vm/tailrec.bk
     $ROOT/test/vm/tail-record-if.bk
@@ -267,6 +267,8 @@ leg_suite_vm () {
     $ROOT/test/vm/nested-pattern-tail-reader.bk
     $ROOT/test/vm/record-pattern-tail.bk
     $ROOT/test/vm/record-pattern-tail-reader.bk
+    $ROOT/test/vm/record-rest-tail.bk
+    $ROOT/test/vm/record-rest-tail-reader.bk
   )
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
@@ -327,6 +329,17 @@ leg_suite_vm () {
     $ROOT/test/vm/record-pattern-function-field.bk
     $ROOT/test/vm/record-pattern-reader-whole.bk
     $ROOT/test/vm/variant-match-reader-payload.bk
+    $ROOT/test/vm/record-rest-basic.bk
+    $ROOT/test/vm/record-rest-order.bk
+    $ROOT/test/vm/record-rest-occurrences.bk
+    $ROOT/test/vm/record-rest-repeated.bk
+    $ROOT/test/vm/record-rest-empty.bk
+    $ROOT/test/vm/record-rest-nested.bk
+    $ROOT/test/vm/record-rest-capture-stack-shadow.bk
+    $ROOT/test/vm/record-rest-effects.bk
+    $ROOT/test/vm/record-rest-result-layout.bk
+    $ROOT/test/vm/record-rest-nested-result.bk
+    $ROOT/test/vm/record-rest-reader-use.bk
   )
   for fixture in $named_files; do
     if [[ ! -f $fixture || ! -f ${fixture:r}.out ]]; then
@@ -338,7 +351,7 @@ leg_suite_vm () {
   local named_refusals=(
     $ROOT/test/lower-neg/variant-match-open-tail.bk
     $ROOT/test/lower-neg/variant-match-nested-open-tail.bk
-    $ROOT/test/lower-neg/record-pattern-rest.bk
+    $ROOT/test/lower-neg/record-rest-open.bk
     $ROOT/test/lower-neg/record-pattern-reader-field.bk
     $ROOT/test/lower-neg/record-pattern-reader-annotation.bk
   )

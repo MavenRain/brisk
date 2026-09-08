@@ -1,0 +1,7 @@
+let show n = let shown = print_int n in print_newline ()
+let empty r = match (r : {}) with | {} -> 100
+let read r = match (r : { a : int, b : int }) with | { b = second, a = first | rest } -> let rebuilt = { n = first + second | rest } in rebuilt.n + empty rest
+let whole r = match (r : { a : int, b : int }) with | { | rest } -> rest.a + rest.b
+let a = show (read { b = 4, a = 3 })
+let b = show (read { a = 5, b = 6 })
+let main = show (whole { b = 8, a = 7 })

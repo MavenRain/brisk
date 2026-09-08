@@ -1,0 +1,4 @@
+let show n = let shown = print_int n in print_newline ()
+let read r = match (r : { a : int, b : int, a : int, c : int }) with | { a = 0, a = again | rest } -> again + rest.a + 10 * rest.b + 100 * rest.c | { a = value | rest } -> value + rest.a + 10 * rest.b + 100 * rest.c
+let a = show (read { a = 0, c = 3, a = 7, b = 2 })
+let main = show (read { b = 5, a = 4, a = 8, c = 6 })

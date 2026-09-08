@@ -1,0 +1,97 @@
+(* composite-key, the port of TOASTY/examples/composite-key/src/main.rs. *)
+(* Date 2026-09-08.  The Rust main is transliterated top to bottom. *)
+(* The db is threaded as let db1 = ... in, because M0 has no mutation. *)
+(* Every Rust output line is one print sequence in the same order. *)
+
+(* The Todo of this example carries the composite key, partition user_id *)
+(* and local id.  The port holds one flat id counter, so the composite *)
+(* key is a ledger row and not a language form. *)
+(* The Todo declares id, title, order, the belongs_to user and user_id, *)
+(* and it declares no completed field.  The view of the prelude drops *)
+(* completed, which is the record restriction form (D-P-9). *)
+let ck_id v = (v : { id : int, user_id : int, title : string, order : int }).id
+let ck_user_id v = (v : { id : int, user_id : int, title : string, order : int }).user_id
+let ck_title v = (v : { id : int, user_id : int, title : string, order : int }).title
+let ck_order v = (v : { id : int, user_id : int, title : string, order : int }).order
+
+(* The Todo printer of this example.  {:#?} breaks the struct over lines *)
+(* with four-space indents and a trailing comma on every field, in the *)
+(* order the model declares them (D-P-11). *)
+let pretty_todo_ck t =
+  let v = todo_view_ck t in
+  let a = print_string "Todo {\n    id: " in
+  let b = print_id (ck_id v) in
+  let c = print_string ",\n    title: " in
+  let d = print_quoted (ck_title v) in
+  let e = print_string ",\n    order: " in
+  let f = print_int (ck_order v) in
+  let g = print_string ",\n    user: <not loaded>,\n    user_id: " in
+  let h = print_id (ck_user_id v) in
+  print_string ",\n}"
+
+(* The Rust tokio main opens the db and resets the schema. *)
+let main =
+  let db0 = push_schema db_empty in
+
+  (* create!(User { name: "John Doe", email: "john@example.com" }) *)
+  let u_id = db0.next in
+  let db1 = create_user db0 "John Doe" "john@example.com" in
+  let u = user_res_or_blank (get_user_by_id db1 u_id) in
+
+  (* println!("created user; name={:?}; email={:?}", ...) *)
+  let p1 = print_string "created user; name=" in
+  let p2 = print_quoted (user_name u) in
+  let p3 = print_string "; email=" in
+  let p4 = print_quoted (user_email u) in
+  let p5 = print_newline () in
+
+  (* The Rust for loop walks three titles under enumerate, so the port *)
+  (* writes the three passes as three calls.  The order field takes the *)
+  (* index of the pass. *)
+  (* Pass 0: create!(in user.todos() { title: "finish toasty", order: 0 }) *)
+  let t1_id = db1.next in
+  let db2 = create_todo db1 (user_id u) "finish toasty" false 0 in
+  let t1 = todo_res_or_blank (get_todo_by_id db2 t1_id) in
+  let p6 = print_string "created todo; title=" in
+  let p7 = print_quoted (todo_title t1) in
+  let p8 = print_string "; order=" in
+  let p9 = print_int (todo_order t1) in
+  let p10 = print_newline () in
+
+  (* Pass 1: create!(in user.todos() { title: "retire", order: 1 }) *)
+  let t2_id = db2.next in
+  let db3 = create_todo db2 (user_id u) "retire" false 1 in
+  let t2 = todo_res_or_blank (get_todo_by_id db3 t2_id) in
+  let p11 = print_string "created todo; title=" in
+  let p12 = print_quoted (todo_title t2) in
+  let p13 = print_string "; order=" in
+  let p14 = print_int (todo_order t2) in
+  let p15 = print_newline () in
+
+  (* Pass 2: create!(in user.todos() { title: "play golf", order: 2 }) *)
+  let t3_id = db3.next in
+  let db4 = create_todo db3 (user_id u) "play golf" false 2 in
+  let t3 = todo_res_or_blank (get_todo_by_id db4 t3_id) in
+  let p16 = print_string "created todo; title=" in
+  let p17 = print_quoted (todo_title t3) in
+  let p18 = print_string "; order=" in
+  let p19 = print_int (todo_order t3) in
+  let p20 = print_newline () in
+
+  (* The three banner lines of the query section. *)
+  let p21 = print_string "====================" in
+  let p22 = print_newline () in
+  let p23 = print_string "--- QUERY ---" in
+  let p24 = print_newline () in
+  let p25 = print_string "====================" in
+  let p26 = print_newline () in
+
+  (* user.todos().filter(Todo::fields().order().eq(1)).exec(&mut db) *)
+  (* The filter on the order field is a filter over the has_many table. *)
+  let todos = filter (fun t -> todo_order t == 1) (user_todos db4 u) in
+
+  (* for todo in todos { println!("TODO = {todo:#?}") } *)
+  todo_each (fun t ->
+    let a = print_string "TODO = " in
+    let b = pretty_todo_ck t in
+    print_newline ()) todos

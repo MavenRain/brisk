@@ -630,7 +630,7 @@ but the checker refuses that arm list first as non-exhaustive, including
 a complete `true` and `false` pair, so the lowering case is not reachable
 from a checked program.
 
-Closed record match patterns without a rest binder lower to field selections
+Closed record match patterns, including rest binders, lower to field selections
 and bindings. Each field uses its label and occurrence in the saved record's
 physical row, independently of pattern field order. Sparse occurrence indices
 retain the checker's shared-slot interpretation. Fields can contain literal,
@@ -642,10 +642,20 @@ offsets in their original scope. The record expression runs once, and field
 selections do not replay its construction effects. Result layouts and tail
 position pass through the successful field continuation.
 
-Rest binders, open record pattern layouts and record patterns in lambda or
-let bindings retain `Not_yet M1` refusals. A field binding of an open record
+For a closed scrutinee, `{ a = x | rest }` binds the record remaining after
+the fields named by the pattern are consumed. Each label consumes a prefix
+through its greatest occurrence index: `a ^ 2` removes occurrences zero,
+one and two, even when the first two have no explicit pattern. Repeated
+constraints on one occurrence consume that slot only once. Surviving fields
+retain their physical order and the residual's occurrence indices start at
+zero. The residual record is constructed only after all field tests succeed,
+and its binder follows the field binders. It can be empty, captured, returned
+or passed to a reader of a closed record. Nested rest binders share these rules.
+
+Open record pattern layouts and record patterns in lambda or let bindings
+retain `Not_yet M1` refusals. A field binding of an open record
 does not acquire dynamic reader offsets from its enclosing record. A closed
-record pattern
+record pattern without a rest binder
 must name every distinct label of the row, and for a repeated label at least
 its highest occurrence. An unwanted field is written `l = _`, because a
 missing label fails the checker with `MissingLabel` and not with an M1
@@ -708,7 +718,7 @@ The VM is a tail-recursive OCaml walk over the instruction array with
 one accumulator and an explicit value stack.  Tail position passes into
 lambda bodies, conditional arms, match arms and let bodies.  A call in
 tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
-recursion fixture and twenty-nine named layout and match regressions make at least
+recursion fixture and thirty-one named layout and match regressions make at least
 100,000 calls.  SUITE-VM requires each fixture and its golden to exist and
 each maximum stack use to stay at or below 64 slots.
 
@@ -751,7 +761,7 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-181 programs, no failures and consistent counts.  It also requires
+194 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
 The same gate runs at least fifteen `test/lower-neg` programs through
 `test/refusals.exe`, and the tree ships fifteen. Each must parse and type

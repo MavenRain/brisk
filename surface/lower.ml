@@ -682,7 +682,7 @@ and lower_chain ?(fallback = fun (_ : ctx) -> refuse "M1")
   | (Ast.PInj (_, _, _), _) :: _ ->
       let* row = need (variant_row t) "the lowering wants a variant type here" in
       lower_dispatch ~fallback c t row arms
-  | (Ast.PRec (fields, None), b) :: more ->
+  | (Ast.PRec (fields, rest), b) :: more ->
       let* row = need (record_row t) "the lowering wants a record type here" in
       let* () = if Row.is_open row then refuse "M1" else Ok () in
       let level = List.length c.frame in
@@ -690,8 +690,23 @@ and lower_chain ?(fallback = fun (_ : ctx) -> refuse "M1")
         let depth = List.length current.frame - level - 1 in
         let* body = lower_chain ~fallback (restore c current) t origin more in
         Ok (Ir.ILet (Ir.IVar depth, body)) in
-      lower_fields next (push c (SVal hidden)) (Row.fields row) level fields b
-  | (Ast.PRec (_, Some _), _) :: _ -> refuse "M1"
+      lower_fields next (push c (SVal hidden)) (Row.fields row) level fields
+        (fun current -> lower_rest current (Row.fields row) level fields rest b)
+
+(* The residual removes each mentioned label's prefix, including padding.
+   Construct it only after all field tests succeed, in the producer's order. *)
+and lower_rest (c : ctx) (row : (Label.t * Types.ty) list) (level : int)
+    (fields : (Label.t * Label.occ * Ast.pat) list) (rest : Ident.t option)
+    (body : ctx -> (Ir.t, Error.t) result) : (Ir.t, Error.t) result =
+  Option.fold ~none:(fun () -> body c) ~some:(fun x () ->
+    let kept = List.filter (fun (_, (l, k, _)) ->
+      not (List.exists (fun (m, j, _) -> Label.equal l m && k <= Label.occ_to_int j) fields))
+      (List.mapi (fun i f -> i, f) (numbered row)) in
+    let t = Types.Record (Row.closed (List.map (fun (_, (l, _, t)) -> l, t) kept)) in
+    let value = Ir.IRec (List.map (fun (i, _) ->
+      Ir.ISel (Ir.IVar (List.length c.frame - level - 1), i)) kept) in
+    let* b = lower_chain c t [] [Ast.PVar x, body] in
+    Ok (Ir.ILet (value, b))) rest ()
 
 (* Field tests keep the whole record below every earlier field binding.
    A failed test resumes the next arm in its original lexical scope. *)

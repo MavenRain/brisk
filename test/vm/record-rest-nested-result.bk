@@ -1,0 +1,7 @@
+let show n = let ignored = print_int n in print_newline ()
+let left r = match (r : { cut : int, v : < one : { b : int, a : int }, two : int >, f : { y : int, x : int } -> int, z : bool }) with | { cut = _ | rest } -> rest
+let right r = match (r : { z : bool, cut : int, f : { x : int, y : int } -> int, v : < two : int, one : { a : int, b : int } > }) with | { cut = _ | rest } -> rest
+let read r = (if r.z then 100 else 200) + r.f { x = 3, y = 4 } + (match (r.v : < one : { a : int, b : int }, two : int >) with | < one payload > -> payload.a + 10 * payload.b | < two n > -> n)
+let choose flag = if flag then left { f = fun r -> (r : { x : int, y : int }).x + 10 * r.y, z = true, cut = 0, v = < one { a = 1, b = 2 } > } else right { v = < one { b = 6, a = 5 } >, cut = 0, z = false, f = fun r -> (r : { y : int, x : int }).x + 10 * r.y }
+let a = show (read (choose true))
+let main = show (read (choose false))

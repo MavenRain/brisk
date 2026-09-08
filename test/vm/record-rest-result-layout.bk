@@ -1,0 +1,5 @@
+let show n = let shown = print_int n in print_newline ()
+let choose gate r = if gate then match (r : { skip : int, b : int, a : int }) with | { skip = _ | rest } -> rest else match (r : { a : int, skip : int, b : int }) with | { skip = _ | rest } -> rest
+let read r = (r : { a : int, b : int }).a + 10 * r.b
+let a = show (read (choose true { a = 3, skip = 99, b = 4 }))
+let main = show (read (choose false { b = 6, a = 5, skip = 88 }))

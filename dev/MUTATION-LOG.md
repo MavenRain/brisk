@@ -814,3 +814,35 @@ refused program`, giving `REFUSALS files=2 ok=0 fail=2`.
 Final control and RP-M5 capture: `captures/run-FGUu3H`. The `final` directory
 holds its source manifest and result JSON files. All five targeted mutants
 were detected; the broader M0 completion mutations remain outside this slice.
+
+## Closed record rest continuation, 2026-09-08
+
+The `next_slice` agent froze the twelve initial `record-rest-*` pairs,
+then built an unchanged control and four isolated mutants. All five builds
+passed. The control passes all twelve programs and each mutant fails at
+least one stdout golden or returns a machine error.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| RR-M1: consume only the named occurrence, changing `<=` to `=` | `record-rest-occurrences` | One of twelve goldens differs because sparse padding remains. |
+| RR-M2: read the saved whole record at constant depth zero | `record-rest-basic` and ten others | Eleven of twelve fail, including a record kind error. |
+| RR-M3: reverse the residual value fields but keep its type order | `record-rest-order` and five others | Six of twelve goldens differ. |
+| RR-M4: bind the whole input record under the residual type | `record-rest-basic` and ten others | Eleven of twelve fail. |
+
+Evidence is retained under
+`/Users/oobi/Documents/gpt2/brisk-rest-evidence/mutations`, including the
+runner, exact replacements, input and output hashes, the twelve source and
+golden pairs, complete per-program logs, and `summary.json`. Capture
+`captures/run-yyHJv1` exits zero. The final lowering and inference files
+match the control hashes. The later thirteenth pair,
+`record-rest-nested-result`, is outside this frozen mutation corpus.
+
+The `rest_review` agent separately ran twenty source field permutations,
+five nested success and fallback paths, and a two-branch nested result probe.
+All positive probes pass, and two open-reader boundary probes refuse M1.
+The nested result probe was promoted to the thirteenth pair after adding
+an explicit closed variant annotation to its helper. The initial fixture
+agent also corrected a reserved field label from `take` to `head` after
+the first run. Neither correction changed the initial stdout goldens.
+The independent review and probe sources are retained in
+`/Users/oobi/Documents/gpt2/brisk-rest-evidence/review/REVIEW.md`.

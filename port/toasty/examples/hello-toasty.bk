@@ -1,0 +1,107 @@
+(* hello-toasty, the port of TOASTY/examples/hello-toasty/src/main.rs. *)
+(* Date 2026-09-08.  The Rust main is transliterated top to bottom. *)
+(* The db is threaded as let db1 = ... in, because M0 has no mutation. *)
+(* Every Rust output line is one print sequence in the same order. *)
+
+(* The Rust tokio main opens the db and resets the schema. *)
+(* Db::builder().models(...).connect(...) is the empty in-memory db. *)
+let main =
+  let db0 = push_schema db_empty in
+
+  (* println!("==> let u1 = create!(User)") then create!(User) for John Doe. *)
+  let p1 = print_string "==> let u1 = create!(User)" in
+  let p2 = print_newline () in
+  let db1 = create_user db0 "John Doe" "john@example.com" in
+  let u1 = user_res_or_blank (get_user_by_email db1 "john@example.com") in
+
+  (* println!("==> let u2 = create!(User)") then create!(User) for Nancy. *)
+  let p3 = print_string "==> let u2 = create!(User)" in
+  let p4 = print_newline () in
+  let db2 = create_user db1 "Nancy Huerta" "nancy@example.com" in
+  let u2 = user_res_or_blank (get_user_by_email db2 "nancy@example.com") in
+
+  (* User::get_by_id(&u1.id) then println!("USER = {user:#?}"). *)
+  let p5 = print_string "==> let user = User::get_by_id(&u1.id)" in
+  let p6 = print_newline () in
+  let user1 = user_res_or_blank (get_user_by_id db2 (user_id u1)) in
+  let p7 = print_string "USER = " in
+  let p8 = pretty_user user1 in
+  let p9 = print_newline () in
+
+  (* User::get_by_email(&u1.email) then println!("USER = {user:#?}"). *)
+  let p10 = print_string "==> let user = User::get_by_email(&u1.email)" in
+  let p11 = print_newline () in
+  let user2 = user_res_or_blank (get_user_by_email db2 (user_email u1)) in
+  let p12 = print_string "USER = " in
+  let p13 = pretty_user user2 in
+  let p14 = print_newline () in
+
+  (* assert!(create!(User { email: "john@example.com" }).is_err()). *)
+  (* The creator answers the db unchanged on a unique violation, so the *)
+  (* counter of the answer holds the refusal. *)
+  let db3 = create_user db2 "John Dos" "john@example.com" in
+  let k1 = check (db3.next == db2.next) "the duplicate email is refused" in
+
+  (* user.update().name("Foo bar") and the two assert_eq lines. *)
+  let db4 = update_user_name db3 (user_id u1) "Foo bar" in
+  let user3 = user_res_or_blank (get_user_by_id db4 (user_id u1)) in
+  let k2 = check (string_compare (user_name user3) "Foo bar" == 0) "the name is Foo bar" in
+  let user4 = user_res_or_blank (get_user_by_id db4 (user_id u1)) in
+  let k3 = check (string_compare (user_name user4) (user_name user3) == 0) "the stored name is the read name" in
+
+  (* println!("  reloaded, notice change to the user's name -> {user:#?}"). *)
+  let p15 = print_string "  reloaded, notice change to the user's name -> " in
+  let p16 = pretty_user user3 in
+  let p17 = print_newline () in
+
+  (* The banner of the todo section. *)
+  let p18 = print_string " ~~~~~~~~~~~ CREATE TODOs ~~~~~~~~~~~~" in
+  let p19 = print_newline () in
+
+  (* create!(in u2.todos() { title: "finish toasty" }) then the print. *)
+  let t1_id = db4.next in
+  let db5 = create_todo db4 (user_id u2) "finish toasty" false 0 in
+  let todo1 = todo_res_or_blank (get_todo_by_id db5 t1_id) in
+  let p20 = print_string "CREATED = " in
+  let p21 = pretty_todo todo1 in
+  let p22 = print_newline () in
+
+  (* let todos = u2.todos().exec(&mut db) then the for loop over them. *)
+  (* Each pass prints the title and the belongs_to user. *)
+  let todos1 = user_todos db5 u2 in
+  let p23 = todo_each (fun t ->
+    let a = print_string "TODO; title=" in
+    let b = print_quoted (todo_title t) in
+    let c = print_newline () in
+    let d = print_string "-> user " in
+    let e = debug_user (user_res_or_blank (todo_user db5 t)) in
+    print_newline ()) todos1 in
+
+  (* user.delete() then assert!(User::get_by_id(&u2.id).is_err()). *)
+  let db6 = delete_user db5 (user_id u2) in
+  let k4 = check (user_res_is_err (get_user_by_id db6 (user_id u2))) "the deleted user is gone" in
+
+  (* create!(User::[ ... ]) is the batch create of two users. *)
+  let db7 = create_user db6 "User Foo" "foo@example.com" in
+  let db8 = create_user db7 "User Bar" "bar@example.com" in
+
+  (* create!(User { todos: [ ... ] }) is the nested has_many create. *)
+  let ann_id = db8.next in
+  let db9 = create_user db8 "Ann Chovey" "ann.chovey@example.com" in
+  let db10 = create_todo db9 ann_id "Make pizza" false 0 in
+  let db11 = create_todo db10 ann_id "Sleep" false 0 in
+
+  (* user.update().todos(stmt::insert(create!(Todo { ... }))). *)
+  let last_id = db11.next in
+  let db12 = create_todo db11 ann_id "might delete later" false 0 in
+
+  (* user.todos().remove(&mut db, todos.last()) and the length assert. *)
+  let ann = user_res_or_blank (get_user_by_id db12 ann_id) in
+  let todos2 = user_todos db12 ann in
+  let len = todo_count todos2 in
+  let db13 = unlink_todo db12 last_id in
+  let k5 = check (len - 1 == todo_count (user_todos db13 ann)) "the unlinked todo is gone" in
+
+  (* println!(">>> DONE <<<") and the Ok(()) of the Rust main. *)
+  let p24 = print_string ">>> DONE <<<" in
+  print_newline ()

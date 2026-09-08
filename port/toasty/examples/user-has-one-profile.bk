@@ -1,0 +1,63 @@
+(* user-has-one-profile, the port of *)
+(* TOASTY/examples/user-has-one-profile/src/main.rs.  Date 2026-09-08. *)
+(* The Rust main is transliterated top to bottom. *)
+(* The db is threaded as let db1 = ... in, because M0 has no mutation. *)
+(* Every Rust output line is one print sequence in the same order. *)
+
+(* The User of this example declares id, name and the has_one profile. *)
+(* It declares no email, so the create passes the empty string and the *)
+(* example never reads that field (3.1, the models hold the union). *)
+
+(* The Profile printers.  This example is the only one that prints a *)
+(* Profile, so the printers live here and not in the prelude (D-P-11). *)
+(* The Profile declares id, then the belongs_to user, then user_id. *)
+(* An unloaded Deferred prints <not loaded>. *)
+
+(* {:#?} of an Option at depth one indents the payload by eight spaces. *)
+let pretty_id_opt_nested o =
+  match (o : < some : int, none : unit >) with
+  | < some i > -> let head = print_string "Some(\n        " in let body = print_id i in print_string ",\n    )"
+  | < none u > -> print_string "None"
+
+(* {:#?} of an Option at depth zero indents the payload by four spaces. *)
+let pretty_id_opt_top o =
+  match (o : < some : int, none : unit >) with
+  | < some i > -> let head = print_string "Some(\n    " in let body = print_id i in print_string ",\n)"
+  | < none u > -> print_string "None"
+
+let pretty_profile p =
+  let a = print_string "Profile {\n    id: " in
+  let b = print_id (profile_id p) in
+  let c = print_string ",\n    user: <not loaded>,\n    user_id: " in
+  let d = pretty_id_opt_nested (profile_user_id p) in
+  print_string ",\n}"
+
+(* The Rust tokio main opens the db and resets the schema. *)
+let main =
+  let db0 = push_schema db_empty in
+
+  (* create!(User { name: "John Doe" }).exec(&mut db) *)
+  let u_id = db0.next in
+  let db1 = create_user db0 "John Doe" "" in
+  let u = user_res_or_blank (get_user_by_id db1 u_id) in
+
+  (* println!("created user; name={:?}", user.name) *)
+  let p1 = print_string "created user; name=" in
+  let p2 = print_quoted (user_name u) in
+  let p3 = print_newline () in
+
+  (* if let Some(profile) = user.profile().exec(&mut db).await? *)
+  (* No profile is created, so the has_one lookup answers the none arm *)
+  (* and the else branch prints.  The some arm holds the two lines the *)
+  (* Rust prints when a profile exists. *)
+  match (user_profile db1 u : < some : { id : int, user_id : < some : int, none : unit > }, none : unit >) with
+  | < some pr > ->
+      let q1 = print_string "profile: " in
+      let q2 = pretty_profile pr in
+      let q3 = print_newline () in
+      let q4 = print_string "profile.user_id: " in
+      let q5 = pretty_id_opt_top (profile_user_id pr) in
+      print_newline ()
+  | < none z > ->
+      let q6 = print_string "user has no profile" in
+      print_newline ()

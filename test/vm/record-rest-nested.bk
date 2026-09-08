@@ -1,0 +1,5 @@
+let show n = let shown = print_int n in print_newline ()
+let read v = match (v : < box : { data : { a : int, b : int, c : int }, offset : int, spare : int }, other : int >) with | < box { data = { b = value | inside } | outside } > -> value + 10 * inside.a + 100 * inside.c + 1000 * outside.offset + outside.spare | < other n > -> n + 90000
+let a = show (read (< box { spare = 5, data = { c = 3, b = 2, a = 1 }, offset = 4 } >))
+let b = show (read (< box { offset = 8, data = { b = 6, a = 5, c = 7 }, spare = 9 } >))
+let main = show (read (< other 7 >))

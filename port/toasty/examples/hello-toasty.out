@@ -1,0 +1,35 @@
+==> let u1 = create!(User)
+==> let u2 = create!(User)
+==> let user = User::get_by_id(&u1.id)
+USER = User {
+    id: 00000000-0000-0000-0000-000000000001,
+    name: "John Doe",
+    email: "john@example.com",
+    todos: <not loaded>,
+    moto: None,
+}
+==> let user = User::get_by_email(&u1.email)
+USER = User {
+    id: 00000000-0000-0000-0000-000000000001,
+    name: "John Doe",
+    email: "john@example.com",
+    todos: <not loaded>,
+    moto: None,
+}
+  reloaded, notice change to the user's name -> User {
+    id: 00000000-0000-0000-0000-000000000001,
+    name: "Foo bar",
+    email: "john@example.com",
+    todos: <not loaded>,
+    moto: None,
+}
+ ~~~~~~~~~~~ CREATE TODOs ~~~~~~~~~~~~
+CREATED = Todo {
+    id: 00000000-0000-0000-0000-000000000003,
+    user_id: 00000000-0000-0000-0000-000000000002,
+    user: <not loaded>,
+    title: "finish toasty",
+}
+TODO; title="finish toasty"
+-> user User { id: 00000000-0000-0000-0000-000000000002, name: "Nancy Huerta", email: "nancy@example.com", todos: <not loaded>, moto: None }
+>>> DONE <<<

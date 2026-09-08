@@ -1,0 +1,5 @@
+let show n = let shown = print_int n in print_newline ()
+let inner v = match (v : < go : int, stop : int >) with | < go n > -> n | < stop n > -> n + 100
+let rec walk count r = match (r.tag : { value : < go : int, stop : int >, last : int }) with | { value = < go n > | rest } -> if count == 0 then n + rest.last + r.extra else walk (count - 1) r | { value = other | rest } -> if count == 0 then inner other + rest.last + r.extra else walk (count - 1) r
+let a = show (walk 100000 { extra = 3, tag = { last = 5, value = < go 7 > }, spare = 11 })
+let main = show (walk 100000 { tag = { value = < stop 8 >, last = 6 }, spare = 12, extra = 4 })

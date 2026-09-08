@@ -1,2 +1,2 @@
 let read r = match (r : { x : int, y : int }) with | { x = n | rest } -> n + rest.y
-let main = print_int (read { y = 4, x = 3 })
+let main = let shown = print_int (read { y = 4, x = 3 }) in print_newline ()

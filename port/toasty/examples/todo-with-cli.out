@@ -1,0 +1,25 @@
+==> Creating users...
+Created users: Alice and Bob
+
+==> Creating todos...
+Created 3 todos
+
+==> Listing all users and their todos...
+
+User: Alice (alice@example.com)
+  [ ] Learn Rust
+  [ ] Build a web app
+
+User: Bob (bob@example.com)
+  [✓] Write documentation
+
+==> Updating a todo...
+Marked 'Learn Rust' as completed
+
+==> Deleting a todo...
+Deleting 'Build a web app'
+
+==> Final count...
+Total todos remaining: 2
+
+>>> Application completed successfully! <<<

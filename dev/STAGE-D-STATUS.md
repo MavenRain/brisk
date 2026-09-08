@@ -1,10 +1,11 @@
-# Stage D continuation, 2026-09-07
+# Stage D continuation, 2026-09-08
 
 Stage D remains in progress.  The reader continuation starts at `674f89c`,
 the stack-slot repair at `3259c4d`, layout reconciliation at `e3b42be`,
 tail-call preservation at `42dd749`, recursive group layout settlement
 at `2b4a6e2`, ordered variant matches at `dca2985`, and nested variant
-patterns at `6d0a9bd`, and closed record match patterns at `fc894ab`.
+patterns at `6d0a9bd`, closed record match patterns at `fc894ab`, and closed
+record rest bindings at `4f16e6e`.
 The known closed-record and contextual-variant reproductions now pass.
 The Stage E driver and speed gates remain unimplemented.
 
@@ -116,7 +117,7 @@ Fifteen fixtures parse and check successfully before answering the exact
 - Accepting an open variant parameter whose unknown tail can flow through.
 - Matching an open variant scrutinee with a catch-all arm.
 - Destructuring a nested injection whose variant row still has an open tail.
-- Binding the residual record with a record pattern's rest name.
+- Binding a residual record whose full row remains open.
 - Matching a value containing a function with an open record domain.
 - Hiding that reader's domain with an annotation on the enclosing record.
 
@@ -195,8 +196,8 @@ Seventeen new VM pairs include the promoted record payload refusal. They
 cover nested tests, whole-value fallbacks, shadowed ordinary and reader
 bindings, effects, temporary slots, closures, result layout conversion and
 curried reader bodies and closed function fields. Two pairs make 100000
-calls and retain individual 64-slot bounds. A replacement refusal pins
-closed record rest binding. Two additional refusals pin hidden reader
+calls and retain individual 64-slot bounds. The former closed record rest
+refusal is now executable. Two additional refusals pin hidden reader
 arguments in a scrutinee, both directly and through an enclosing annotation.
 The match guard infers the source type with enclosing annotations stripped.
 It applies only to a match whose arms bind a record field, because no other
@@ -213,7 +214,7 @@ and `let shown = print_int (apply { f = fun r -> r.n })` shows the fault.
 HEAD fc894ab refuses the same program with `Not_yet the form arrives at M1`.
 This remains an
 unsupported transport path, and the guard is not a general safety proof.
-A closed record pattern
+A closed record pattern without a rest binder
 must name every distinct label of the row, and for a repeated label at least
 its highest occurrence. Lower occurrences can be left out. An unwanted field
 is written `l = _`, because a missing label fails the checker with
@@ -227,21 +228,38 @@ The HOUSE wildcard and partial-operation rule now scans OCaml sources,
 matching its implementation-language scope.  Brisk wildcard fixtures are
 valid language programs.  An injected OCaml wildcard still fails HOUSE.
 
+## Closed record rest bindings
+
+Closed record rest bindings now construct the residual only after every
+field test succeeds. Surviving fields retain their producer order. Each
+mentioned label consumes all occurrences through its highest pattern index,
+including implicit padding; repeated constraints consume a shared slot once.
+The rest name receives the residual's concrete type and normal binder
+metadata, so it shadows an outer name without inheriting its reader offsets.
+Nested rest binders can capture, return and pass their closed residuals.
+General higher-order reader transport retains the limitations above.
+
+Thirteen VM pairs cover the promoted refusal, reordered and duplicate fields,
+sparse and repeated constraints, empty residuals, nested patterns, captures,
+fallback shadowing, effects, nested result conversion and reader calls. Two pairs
+make 100000 calls through successful and fallback arms. A replacement refusal
+pins matching an open record whose residual has no full physical layout.
+
 ## Next implementation work
 
 Design explicit layout transport for open record results, open variant
 parameters and general higher-order reader values.  General reader
 transport through records and returned conditional values remains
-outside the supported signature paths. Record rest bindings and record
+outside the supported signature paths. Open record rest layouts and record
 destructuring in lambdas and lets retain their lowering refusals.
 
-The gate requires 181 executable programs, fifteen exact lowering refusals,
+The gate requires 194 executable programs, fifteen exact lowering refusals,
 all 22 instructions emitted and executed, and at most 64 slots in the
-100,000-call tail recursion fixture and each of twenty-nine named deep
+100,000-call tail recursion fixture and each of thirty-one named deep
 layout and match fixtures.  The checker requires 19 positive fixtures and
-37 negative twins. The counted core is 1999/2000 lines and the machine
+37 negative twins. The counted core is 1997/2000 lines and the machine
 is 795/800. Record and variant tests share match continuations. Identical
-IR size and free-variable cases share branches, stack searches use the
+IR size, free-variable and syntactic-value cases share branches, stack searches use the
 pinned standard library, and the checker alone converts an annotation.
 No logic moved outside the counted files and no cap or path changed.
 

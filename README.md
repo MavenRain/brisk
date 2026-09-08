@@ -20,8 +20,10 @@ Nested closed variant payload patterns use the same ordered dispatch.
 Failed inner tests resume enclosing alternatives with their original scope.
 Closed record match patterns select fields by label and occurrence, including
 nested record, variant and literal tests. Failed fields resume the next arm
-without retaining that arm's bindings. Record rest bindings and match
-scrutinees with visible open-row reader types remain refused.
+without retaining that arm's bindings. Closed record rest bindings retain
+unmatched fields in their producer order, including residual duplicate labels.
+Open record pattern layouts and match scrutinees with visible open-row reader
+types remain refused.
 The assembler preserves lexical bindings and captures across temporary
 argument pushes, including nested lets, matches and recursive groups.
 The driver arrives at Stage E.  The grammar,
@@ -73,12 +75,12 @@ HOUSE holds the house rules of the plan section 11 over lib, surface and
 vm, plus test.  PARSE holds parse, print, parse and print equal on its 46
 fixtures.  SUITE-CHECK requires at least 19 positive fixtures and 37
 negative twins.  SUITE-VM checks the stdout goldens of every program with
-`main` in `test/vm` and `test/pos`, with a floor of 181 programs. It
+`main` in `test/vm` and `test/pos`, with a floor of 194 programs. It
 requires at least fifteen lowering refusals to parse and check successfully
 before matching their exact diagnostic goldens; the tree ships fifteen.
 SUITE-VM also
 requires all 22 instructions to be emitted and executed, and the
-100,000-call tail recursion fixture and twenty-nine named layout and match
+100,000-call tail recursion fixture and thirty-one named layout and match
 regressions to use at most 64 stack slots each.
 TRUSTED-LINES requires all counted files to exist and holds the six core
 files at 2,000 lines and the three machine files at 800.  DENOMINATORS

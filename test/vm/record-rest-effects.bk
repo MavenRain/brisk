@@ -1,0 +1,6 @@
+let show n = let shown = print_int n in print_newline ()
+let make n = let shown = show n in { gate = (let shown = show (n + 10) in if n == 2 then < miss n > else < hit n >), last = n }
+let read n = match (make n : { gate : < hit : int, miss : int >, last : int }) with | { gate = < hit 0 > | rest } -> rest.last + 100 | { gate = < hit value > | rest } -> value + rest.last + 200 | whole -> whole.last + 300
+let a = show (read 0)
+let b = show (read 1)
+let main = show (read 2)
