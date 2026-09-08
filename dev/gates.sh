@@ -185,7 +185,7 @@ leg_parse () {
 # alone and holds that run at exit 0 (D-B-48).
 leg_suite_check () {
   local out code line n p q
-  local pos_floor=19 neg_floor=36
+  local pos_floor=19 neg_floor=37
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
   if [[ $code -ne 0 || -n $out ]]; then
@@ -235,7 +235,7 @@ leg_suite_check () {
 # masking a removed regression.
 leg_suite_vm () {
   local out code line n r s k m census stack peak fixture tail_fixture
-  local main_floor=162
+  local main_floor=181
   local tail_files=(
     $ROOT/test/vm/tailrec.bk
     $ROOT/test/vm/tail-record-if.bk
@@ -265,6 +265,8 @@ leg_suite_vm () {
     $ROOT/test/vm/variant-fallback-tail-reader.bk
     $ROOT/test/vm/nested-pattern-tail.bk
     $ROOT/test/vm/nested-pattern-tail-reader.bk
+    $ROOT/test/vm/record-pattern-tail.bk
+    $ROOT/test/vm/record-pattern-tail-reader.bk
   )
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
@@ -308,6 +310,23 @@ leg_suite_vm () {
     $ROOT/test/vm/nested-pattern-effects.bk
     $ROOT/test/vm/nested-pattern-literal-kinds.bk
     $ROOT/test/vm/nested-pattern-inner-lambda.bk
+    $ROOT/test/vm/variant-match-record-pattern.bk
+    $ROOT/test/vm/record-pattern-order.bk
+    $ROOT/test/vm/record-pattern-occurrences.bk
+    $ROOT/test/vm/record-pattern-nested.bk
+    $ROOT/test/vm/record-pattern-ordered.bk
+    $ROOT/test/vm/record-pattern-variant-fallback.bk
+    $ROOT/test/vm/record-pattern-nested-fallback.bk
+    $ROOT/test/vm/record-pattern-capture-stack.bk
+    $ROOT/test/vm/record-pattern-effects.bk
+    $ROOT/test/vm/record-pattern-literal-kinds.bk
+    $ROOT/test/vm/record-pattern-result-layout.bk
+    $ROOT/test/vm/record-pattern-inner-lambda.bk
+    $ROOT/test/vm/record-pattern-fallback-shadow.bk
+    $ROOT/test/vm/record-pattern-fallback-reader-shadow.bk
+    $ROOT/test/vm/record-pattern-function-field.bk
+    $ROOT/test/vm/record-pattern-reader-whole.bk
+    $ROOT/test/vm/variant-match-reader-payload.bk
   )
   for fixture in $named_files; do
     if [[ ! -f $fixture || ! -f ${fixture:r}.out ]]; then
@@ -319,7 +338,9 @@ leg_suite_vm () {
   local named_refusals=(
     $ROOT/test/lower-neg/variant-match-open-tail.bk
     $ROOT/test/lower-neg/variant-match-nested-open-tail.bk
-    $ROOT/test/lower-neg/variant-match-record-pattern.bk
+    $ROOT/test/lower-neg/record-pattern-rest.bk
+    $ROOT/test/lower-neg/record-pattern-reader-field.bk
+    $ROOT/test/lower-neg/record-pattern-reader-annotation.bk
   )
   for fixture in $named_refusals; do
     if [[ ! -f $fixture || ! -f ${fixture:r}.err ]]; then
@@ -327,7 +348,7 @@ leg_suite_vm () {
       return 1
     fi
   done
-  if [[ ${#refused} -lt 13 ]]; then
+  if [[ ${#refused} -lt 15 ]]; then
     print -r -- "FAIL SUITE-VM missing lowering refusals"
     return 1
   fi

@@ -23,6 +23,8 @@ type ctx = {
   serial : int;
 }
 
+type match_arm = Ast.pat * (ctx -> (Ir.t, Error.t) result)
+
 let hidden : Ident.t = Ident.of_string "_"
 
 let off_name (serial : int) (l : Label.t) : Ident.t =
@@ -30,33 +32,25 @@ let off_name (serial : int) (l : Label.t) : Ident.t =
 
 let push (c : ctx) (s : slot) : ctx = { c with frame = s :: c.frame }
 
-let rec at_list (xs : 'a list) (i : int) : 'a option =
-  match xs with
-  | [] -> None
-  | x :: more -> if Int.equal i 0 then Some x else at_list more (i - 1)
+let restore (c : ctx) (current : ctx) : ctx =
+  let extra = List.length current.frame - List.length c.frame in
+  { c with frame = List.init extra (fun _ -> SVal hidden) @ c.frame }
 
-let rec index_in (xs : Ident.t list) (x : Ident.t) (i : int) : int option =
-  match xs with
-  | [] -> None
-  | y :: more -> if Ident.equal x y then Some i else index_in more x (i + 1)
+let at_list (xs : 'a list) (i : int) : 'a option =
+  List.find_mapi (fun n x -> if Int.equal i n then Some x else None) xs
 
 let holds (s : slot) (x : Ident.t) : bool =
   match s with
   | SVal y -> Ident.equal x y
   | SGroup ns -> List.exists (Ident.equal x) ns
 
-let rec depth_of (fr : slot list) (x : Ident.t) (d : int) : int option =
-  match fr with
-  | [] -> None
-  | s :: more -> if holds s x then Some d else depth_of more x (d + 1)
-
 let read_slot (s : slot) (x : Ident.t) (d : int) : Ir.t =
   match s with
   | SVal _ -> Ir.IVar d
-  | SGroup ns -> Ir.ISel (Ir.IVar d, Option.value ~default:0 (index_in ns x 0))
+  | SGroup ns -> Ir.ISel (Ir.IVar d, Option.value ~default:0 (List.find_index (Ident.equal x) ns))
 
 let look (c : ctx) (x : Ident.t) : Ir.t option =
-  Option.bind (depth_of c.frame x 0) (fun (d : int) ->
+  Option.bind (List.find_index (fun s -> holds s x) c.frame) (fun (d : int) ->
       Option.map (fun (s : slot) -> read_slot s x d) (at_list c.frame d))
 
 let rec pat_names (p : Ast.pat) : Ident.t list =
@@ -76,26 +70,20 @@ let rec free (e : Ast.expr) : Ident.t list =
   | Ast.Lit _ -> []
   | Ast.Var x -> [ x ]
   | Ast.Lam (p, b) -> without (free b) (pat_names p)
-  | Ast.App (f, a) -> free f @ free a
+  | Ast.App (f, a) | Ast.RecExt (_, f, a) | Ast.Bin (_, f, a) -> free f @ free a
   | Ast.Let (p, v, b) -> free v @ without (free b) (pat_names p)
   | Ast.LetRec (bs, b) ->
       without (List.concat_map (fun (_, v) -> free v) bs @ free b) (List.map fst bs)
   | Ast.If (c, a, b) -> free c @ free a @ free b
   | Ast.Rec fs ->
       List.concat_map (fun ((_, v) : Label.t * Ast.expr) -> free v) fs
-  | Ast.RecExt (_, v, r) -> free v @ free r
-  | Ast.RecRes (r, _) -> free r
-  | Ast.Sel (r, _) -> free r
-  | Ast.Take (_, v) -> free v
-  | Ast.Inj (_, _, v) -> free v
   | Ast.Match (s, arms) ->
       free s @ List.concat_map (fun ((p, b) : Ast.arm) -> without (free b) (pat_names p)) arms
-  | Ast.Ann (v, _) -> free v
-  | Ast.Bin (_, a, b) -> free a @ free b
   | Ast.Use (x, y, b) -> x :: without (free b) [ y ]
   | Ast.Handle (v, cs) ->
       free v @ List.concat_map (fun ((_, ns, b) : Ast.clause) -> without (free b) ns) cs
-  | Ast.Scope v | Ast.Spawn v | Ast.Join v | Ast.Quote v | Ast.Splice v
+  | Ast.RecRes (v, _) | Ast.Sel (v, _) | Ast.Take (_, v) | Ast.Inj (_, _, v)
+  | Ast.Ann (v, _) | Ast.Scope v | Ast.Spawn v | Ast.Join v | Ast.Quote v | Ast.Splice v
   | Ast.FoldRow v -> free v
 
 let typed_state (c : ctx) (e : Ast.expr) : (Types.ty * Infer.state, Error.t) result =
@@ -157,20 +145,6 @@ let primop_of_binop (op : Ast.binop) : Primop.t =
   | Ast.And -> Primop.AndBool
   | Ast.Or -> Primop.OrBool
 
-let rec lower_ty (t : Ast.ty) : (unit, Error.t) result =
-  match t with
-  | Ast.TName _ -> Ok ()
-  | Ast.TArrow (a, Ast.Many, b) -> Result.bind (lower_ty a) (fun () -> lower_ty b)
-  | Ast.TArrow (_, Ast.AtMostOnce, _) -> refuse "M1"
-  | Ast.TRec r | Ast.TVar r -> lower_trow r
-  | Ast.TCode (_, _) -> refuse "M2"
-
-and lower_trow (r : Ast.trow) : (unit, Error.t) result =
-  List.fold_left
-    (fun (acc : (unit, Error.t) result) ((_, t) : Label.t * Ast.ty) ->
-      Result.bind acc (fun () -> lower_ty t))
-    (Ok ()) r.Ast.fields
-
 let need (o : 'a option) (text : string) : ('a, Error.t) result =
   Option.fold ~none:(Error (Error.parse nowhere text)) ~some:Result.ok o
 
@@ -211,7 +185,7 @@ let rec record_of (c : ctx) (e : Ast.expr) : (Label.t * Ident.t) list =
 let capture (c : ctx) (names : Ident.t list) : int list * slot list =
   let names = names @ List.concat_map (fun x -> List.map snd (record_names c x)) names in
   let ds =
-    dedup_int (List.filter_map (fun (x : Ident.t) -> depth_of c.frame x 0) names)
+    dedup_int (List.filter_map (fun x -> List.find_index (fun s -> holds s x) c.frame) names)
   in
   (ds, List.filter_map (at_list c.frame) ds)
 
@@ -237,6 +211,18 @@ let classify (e : Ast.expr) : head =
   | Ast.Bin (_, _, _) | Ast.Use (_, _, _) | Ast.Handle (_, _) | Ast.Scope _
   | Ast.Spawn _ | Ast.Join _ | Ast.Quote _ | Ast.Splice _ | Ast.FoldRow _ ->
       HOther
+
+let rec unannotated (e : Ast.expr) : Ast.expr =
+  match classify e with
+  | HAnn v -> unannotated v
+  | HVar _ | HLam _ | HApp _ | HOther -> e
+
+(* Only a field binding lifts a value out of a matched record. *)
+let rec binds_record (p : Ast.pat) : bool =
+  match p with
+  | Ast.PRec (_, _) -> true
+  | Ast.PInj (_, _, q) -> binds_record q
+  | Ast.PLit _ | Ast.PVar _ | Ast.PWild -> false
 
 let rec spine (e : Ast.expr) (args : Ast.expr list) : Ast.expr * Ast.expr list =
   match classify e with
@@ -282,17 +268,19 @@ let rec same_layout (a : Types.ty) (b : Types.ty) : bool =
       same_layout a1 b1 && same_layout a2 b2
   | (Types.Var _ | Types.Con _ | Types.Record _ | Types.Variant _ | Types.Arrow _ | Types.Code _), _ -> false
 
-type layout_kind = RecordResult | VariantArgument
+type layout_kind = RecordResult | VariantArgument | ReaderValue
 
 (* Unknown record results and variant parameters have no layout transport. *)
 let rec open_layout (kind : layout_kind) (t : Types.ty) : bool =
   match t with
   | Types.Record r | Types.Variant r ->
-      let wanted = match kind with RecordResult -> record_row t | VariantArgument -> variant_row t in
+      let wanted = match kind with RecordResult -> record_row t | VariantArgument -> variant_row t | ReaderValue -> None in
       (Option.is_some wanted && Row.is_open r) || List.exists (fun (_, x) -> open_layout kind x) (Row.fields r)
   | Types.Arrow (a, _, _, b) ->
       (match kind with RecordResult -> open_layout kind b
-       | VariantArgument -> open_layout kind a || open_layout kind b)
+       | VariantArgument -> open_layout kind a || open_layout kind b
+       | ReaderValue -> Option.fold ~none:false ~some:Row.is_open (record_row a)
+           || open_layout kind a || open_layout kind b)
   | Types.Con (_, xs) -> List.exists (open_layout kind) xs
   | Types.Var _ | Types.Code _ -> false
 
@@ -426,13 +414,9 @@ let lit_test (l : Literal.t) : Ir.t option =
   match l with
   | Literal.Int _ -> Some (Ir.IPrim (Primop.EqInt, [ Ir.IVar 0; Ir.ILit l ]))
   | Literal.Str _ ->
-      Some
-        (Ir.IPrim
-           ( Primop.EqInt,
-             [ Ir.IPrim (Primop.CmpStr, [ Ir.IVar 0; Ir.ILit l ]);
-               Ir.ILit (Literal.Int 0) ] ))
-  | Literal.Bool v ->
-      Some (if v then Ir.IVar 0 else Ir.IPrim (Primop.NotBool, [ Ir.IVar 0 ]))
+      let compared = Ir.IPrim (Primop.CmpStr, [ Ir.IVar 0; Ir.ILit l ]) in
+      Some (Ir.IPrim (Primop.EqInt, [ compared; Ir.ILit (Literal.Int 0) ]))
+  | Literal.Bool v -> Some (if v then Ir.IVar 0 else Ir.IPrim (Primop.NotBool, [Ir.IVar 0]))
   | Literal.Unit -> None
 
 let rec lower_expr (c : ctx) (e : Ast.expr) : (Ir.t, Error.t) result =
@@ -446,8 +430,7 @@ let rec lower_expr (c : ctx) (e : Ast.expr) : (Ir.t, Error.t) result =
   | Ast.LetRec (bs, b) -> lower_fix c bs (fun (c1 : ctx) -> lower_expr c1 b)
   | Ast.If (_, _, _) -> let* t = typed c e in lower_as c e t
   | Ast.Rec fs ->
-      Result.map (fun (vs : Ir.t list) -> Ir.IRec vs)
-        (map_result (lower_expr c) (List.map snd fs))
+      Result.map (fun vs -> Ir.IRec vs) (map_result (lower_expr c) (List.map snd fs))
   | Ast.RecExt (_, v, r) ->
       let* v1 = lower_expr c v in
       let* r1 = lower_expr c r in
@@ -463,10 +446,7 @@ let rec lower_expr (c : ctx) (e : Ast.expr) : (Ir.t, Error.t) result =
       let* v1 = lower_expr c v in
       Ok (Ir.IBlock (k, [ v1 ]))
   | Ast.Match (s, arms) -> lower_match c s arms
-  | Ast.Ann (v, t) ->
-      let* () = lower_ty t in
-      let* target = typed c e in
-      lower_as c v target
+  | Ast.Ann (v, _) -> let* target = typed c e in lower_as c v target
   | Ast.Bin (op, a, b) ->
       let* a1 = lower_expr c a in
       let* b1 = lower_expr c b in
@@ -488,7 +468,7 @@ and lower_as ?(inner = false) (c : ctx) (e : Ast.expr) (target : Types.ty) : (Ir
   | Ast.Let (p, v, b) -> lower_let c p v (fun c1 -> lower_as ~inner c1 b target)
   | Ast.LetRec (bs, b) -> lower_fix c bs (fun c1 -> lower_as ~inner c1 b target)
   | Ast.Match (s, arms) -> lower_match ~inner ~target c s arms
-  | Ast.Ann (v, t) -> let* () = lower_ty t in lower_as ~inner c v target
+  | Ast.Ann (v, _) -> lower_as ~inner c v target
   | Ast.Lit _ | Ast.Var _ | Ast.Lam _ | Ast.App _ | Ast.Rec _ | Ast.RecExt _
   | Ast.RecRes _ | Ast.Sel _ | Ast.Take _ | Ast.Inj _ | Ast.Bin _ | Ast.Use _
   | Ast.Handle _ | Ast.Scope _ | Ast.Spawn _ | Ast.Join _ | Ast.Quote _ | Ast.Splice _ | Ast.FoldRow _ ->
@@ -541,10 +521,7 @@ and lower_args (c : ctx) (ft : Types.ty) (raw : Types.ty) (used : Types.ty list)
   match args with
   | [] -> Ok []
   | a :: more ->
-      let param, rest =
-        Option.fold ~none:(Types.unit_ty, Types.unit_ty) ~some:Fun.id
-          (arrow_parts ft)
-      in
+      let param, rest = Option.value (arrow_parts ft) ~default:(Types.unit_ty, Types.unit_ty) in
       let labels, remaining = match sig_ with [] -> [], [] | ls :: rest -> ls, rest in
       let raw_param, raw_rest = Option.value (arrow_parts raw) ~default:(Types.unit_ty, Types.unit_ty) in
       let* offs = Option.fold ~none:(fun () -> call_offsets c labels a)
@@ -658,6 +635,9 @@ and lower_member (c : ctx) (g : Ident.t) (v : Ast.expr) (names : Ident.t list)
 
 and lower_match ?(inner = false) ?target (c : ctx) (s : Ast.expr) (arms : Ast.arm list) :
     (Ir.t, Error.t) result =
+  let* source = typed c (unannotated s) in
+  let* () = if List.exists (fun ((p, _) : Ast.arm) -> binds_record p) arms
+    && open_layout ReaderValue source then refuse "M1" else Ok () in
   let* (t, st1) = typed_state c s in
   let (res, st2) = Infer.fresh_ty st1 in
   let* (_, st3) = Infer.infer_arms st2 c.env t res Types.REmpty arms in
@@ -667,60 +647,85 @@ and lower_match ?(inner = false) ?target (c : ctx) (s : Ast.expr) (arms : Ast.ar
   let* s1 = lower_expr c s in
   let* s1 = convert t t1 s1 in
   let c = { c with st } in
+  let arms = List.map (fun (p, b) -> p, fun c1 -> lower_as ~inner c1 b target) arms in
   let* body = Option.fold
-    ~none:(fun () -> lower_chain ~inner c t1 (record_of c s) target arms)
-    ~some:(fun row () -> lower_dispatch ~inner c t1 row target arms)
+    ~none:(fun () -> lower_chain c t1 (record_of c s) arms)
+    ~some:(fun row () -> lower_dispatch c t1 row arms)
     (variant_row t1) () in
   Ok (Ir.ILet (s1, body))
 
-and lower_dispatch ~inner ?(fallback = fun (_ : ctx) -> refuse "M1")
-    (c : ctx) (whole : Types.ty) (row : Types.row) (target : Types.ty)
-    (arms : Ast.arm list) : (Ir.t, Error.t) result =
+and lower_dispatch ?(fallback = fun (_ : ctx) -> refuse "M1")
+    (c : ctx) (whole : Types.ty) (row : Types.row)
+    (arms : match_arm list) : (Ir.t, Error.t) result =
   let* () = if Row.is_open row then refuse "M1" else Ok () in
   let fs = Row.fields row and saved = push c (SVal hidden) in
   let* cases = map_result (fun (tag, _) ->
-    let* body = lower_arm ~inner fallback saved whole fs target tag arms [] in
+    let* body = lower_arm fallback saved whole fs tag arms [] in
     Ok (tag, body)) (List.mapi (fun i f -> i, f) fs) in
   Ok (Ir.ISwitch (Ir.IVar 0, cases))
 
-and lower_chain ?(inner = false) ?(fallback = fun (_ : ctx) -> refuse "M1")
+and lower_chain ?(fallback = fun (_ : ctx) -> refuse "M1")
     (c : ctx) (t : Types.ty) (origin : (Label.t * Ident.t) list)
-    (target : Types.ty) (arms : Ast.arm list) : (Ir.t, Error.t) result =
+    (arms : match_arm list) : (Ir.t, Error.t) result =
   match arms with
   | [] -> fallback (push c (SVal hidden))
   | (Ast.PLit l, b) :: more ->
-      let* b1 = lower_as ~inner (push c (SVal hidden)) b target in
+      let* b1 = b (push c (SVal hidden)) in
       Option.fold ~none:(Ok b1)
         ~some:(fun test -> Result.map (fun rest -> Ir.IIf (test, b1, rest))
-            (lower_chain ~inner ~fallback c t origin target more))
+            (lower_chain ~fallback c t origin more))
         (lit_test l)
-  | (Ast.PWild, b) :: _ -> lower_as ~inner (push c (SVal hidden)) b target
+  | (Ast.PWild, b) :: _ -> b (push c (SVal hidden))
   | (Ast.PVar x, b) :: _ ->
       let c1 = poly_add { (push c (SVal x)) with env = Env.add x (Types.mono t) c.env } x [] in
-      lower_as ~inner { c1 with records = (x, origin) :: c1.records } b target
+      b { c1 with records = (x, origin) :: c1.records }
   | (Ast.PInj (_, _, _), _) :: _ ->
       let* row = need (variant_row t) "the lowering wants a variant type here" in
-      lower_dispatch ~inner ~fallback c t row target arms
-  | (Ast.PRec (_, _), _) :: _ -> refuse "M1"
+      lower_dispatch ~fallback c t row arms
+  | (Ast.PRec (fields, None), b) :: more ->
+      let* row = need (record_row t) "the lowering wants a record type here" in
+      let* () = if Row.is_open row then refuse "M1" else Ok () in
+      let level = List.length c.frame in
+      let next current =
+        let depth = List.length current.frame - level - 1 in
+        let* body = lower_chain ~fallback (restore c current) t origin more in
+        Ok (Ir.ILet (Ir.IVar depth, body)) in
+      lower_fields next (push c (SVal hidden)) (Row.fields row) level fields b
+  | (Ast.PRec (_, Some _), _) :: _ -> refuse "M1"
+
+(* Field tests keep the whole record below every earlier field binding.
+   A failed test resumes the next arm in its original lexical scope. *)
+and lower_fields (fallback : ctx -> (Ir.t, Error.t) result) (c : ctx)
+    (row : (Label.t * Types.ty) list) (level : int)
+    (fields : (Label.t * Label.occ * Ast.pat) list)
+    (body : ctx -> (Ir.t, Error.t) result) : (Ir.t, Error.t) result =
+  match fields with
+  | [] -> body c
+  | (l, k, p) :: more ->
+      let* offset = occ_at row l (Label.occ_to_int k) in
+      let value = Ir.ISel (Ir.IVar (List.length c.frame - level - 1), offset) in
+      let* rest = lower_chain ~fallback c (field_at row offset) []
+        [p, fun c1 -> lower_fields fallback c1 row level more body] in
+      Ok (Ir.ILet (value, rest))
 
 (* A case sees its payload above the saved whole variant.  A failed nested
    test supplies its full frame; fallback restores the original lexical
    metadata and locates the whole value below the intervening payloads. *)
-and lower_arm ~inner (fallback : ctx -> (Ir.t, Error.t) result) (c : ctx) (whole : Types.ty)
-    (fs : (Label.t * Types.ty) list) (target : Types.ty) (tag : int)
-    (arms : Ast.arm list) (selected : Ast.arm list) : (Ir.t, Error.t) result =
+and lower_arm (fallback : ctx -> (Ir.t, Error.t) result) (c : ctx) (whole : Types.ty)
+    (fs : (Label.t * Types.ty) list) (tag : int)
+    (arms : match_arm list) (selected : match_arm list) : (Ir.t, Error.t) result =
   let finish fallback =
-    lower_chain ~inner ~fallback c (field_at fs tag) [] target (List.rev selected) in
+    lower_chain ~fallback c (field_at fs tag) [] (List.rev selected) in
   match arms with
   | [] -> finish fallback
   | (Ast.PInj (l, occ, q), b) :: more ->
       let* here = occ_at fs l (Label.occ_to_int occ) in
-      lower_arm ~inner fallback c whole fs target tag more
+      lower_arm fallback c whole fs tag more
         (if Int.equal here tag then (q, b) :: selected else selected)
   | (((Ast.PVar _ | Ast.PWild), _) as arm) :: _ ->
       finish (fun current ->
         let depth = List.length current.frame - List.length c.frame in
-        let* body = lower_chain ~inner { c with frame = current.frame } whole [] target [arm] in
+        let* body = lower_chain (restore c current) whole [] [arm] in
         Ok (Ir.ILet (Ir.IVar depth, body)))
   | (Ast.PLit _, _) :: _ | (Ast.PRec (_, _), _) :: _ -> refuse "M1"
 

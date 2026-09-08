@@ -1,0 +1,2 @@
+let result = match { f = fun r -> r.n } with | { f = read } -> read { pad = 8, n = 42 }
+let main = print_int result

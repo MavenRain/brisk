@@ -37,25 +37,19 @@ type t =
   | ISwitch of t * (int * t) list
   | IPrim of Primop.t * t list
 
-(* size counts the nodes of the tree, which the build log quotes as the
-   one number of the lowering.  The three walks are one recursive group,
-   so each list shape is read by a total fold and never by an index. *)
+(* size counts the nodes of the tree.  No pass reads it today, so it is a
+   reader that only the evidence needs.  The three walks are one recursive
+   group, so each list shape is read by a total fold and never by an index. *)
 let rec size (e : t) : int =
   match e with
   | ILit _ | IVar _ -> 1
-  | ILam (_, b) -> 1 + size b
+  | ILam (_, b) | IRes (b, _) | ISel (b, _) -> 1 + size b
   | IFix (fs, b) -> 1 + size_pairs fs + size b
   | IApp (f, xs) -> 1 + size f + size_list xs
-  | ILet (v, b) -> 1 + size v + size b
+  | ILet (v, b) | IExt (_, v, b) | ISelDyn (v, b) -> 1 + size v + size b
   | IIf (c, a, b) -> 1 + size c + size a + size b
-  | IRec xs -> 1 + size_list xs
-  | IExt (_, v, r) -> 1 + size v + size r
-  | IRes (r, _) -> 1 + size r
-  | ISel (r, _) -> 1 + size r
-  | ISelDyn (r, k) -> 1 + size r + size k
-  | IBlock (_, xs) -> 1 + size_list xs
+  | IRec xs | IBlock (_, xs) | IPrim (_, xs) -> 1 + size_list xs
   | ISwitch (s, arms) -> 1 + size s + size_pairs arms
-  | IPrim (_, xs) -> 1 + size_list xs
 
 and size_list (xs : t list) : int =
   List.fold_left (fun (acc : int) (x : t) -> acc + size x) 0 xs
@@ -73,8 +67,8 @@ let pp_lit (l : Literal.t) : string =
 let pp_ints (ns : int list) : string =
   String.concat " " (List.map Int.to_string ns)
 
-(* pp answers one line of s-expression text, which the build log quotes.
-   It is a reader and not a pass:  it prints the tree it is given and
+(* pp answers one line of s-expression text.  No pass reads it today, so
+   it is a reader and not a pass:  it prints the tree it is given and
    answers no judgment about it. *)
 let rec pp (e : t) : string =
   match e with

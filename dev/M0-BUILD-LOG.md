@@ -1608,3 +1608,77 @@ F4: `SPEC.md` and `dev/STAGE-D-STATUS.md` now bound the fallback copies by
 the leaf count of the nested dispatch, drop the reader metadata claim and
 name the refused field read through a variant payload binder of an open
 record type.
+
+## Closed record match continuation, 2026-09-07
+
+This continuation starts at `fc894ab`. Closed record match patterns without
+rest bindings now lower to ordered static field tests. They work directly
+and inside variant payloads. Stage D remains in progress, with the remaining
+transport and binding limitations listed in `STAGE-D-STATUS.md`.
+
+| Decision | Implementation | Reason |
+| --- | --- | --- |
+| D-D-C40 | Match arms carry success continuations that retain the result target and `inner` flag. `lower_fields` resumes those continuations after all field tests succeed. | Nested records, literals and variants need the same ordered dispatch while preserving tail calls and curried reader bodies. |
+| D-D-C41 | Select each field by label and occurrence from the saved whole record, using its current stack depth. | Earlier field and payload binders change the depth without changing the producer's physical row. The scrutinee's construction effects run once. |
+| D-D-C42 | Both record and whole-variant fallbacks restore the original context and replace every intervening slot name with `hidden`. | Failed fields introduce real binders. Preserving their names could shadow an outer value or use a failed reader value with outer reader offsets. |
+| D-D-C43 | Refuse rest bindings and match scrutinees whose source types visibly contain functions with open record domains. | The check strips enclosing annotations and runs before match specialization. It does not reconstruct hidden reader metadata from already annotated aliases or conditional contents; those remain unsupported transport paths. |
+| D-D-C44 | Consolidate identical IR size and free-variable branches, use standard library index searches, and reuse `Infer.conv_ty` for annotation validation. | The counted core remains below 2000 lines without changing counted paths or moving logic outside them. The checker and machine sources are unchanged. |
+
+The `record_fixtures` agent wrote the initial programs and arithmetic oracles
+before VM execution. The first run found newline mistakes in the stdout
+files, two fixtures outside the checker's conservative record coverage,
+and one nested helper outside the supported open-reader convention.
+The fixture evidence records the resulting source and golden revisions.
+Goldens were not generated from VM output.
+
+The `record_review` agent independently exposed the failed-field shadowing
+bug before `restore` was added. A fallback expected to print 42 instead
+printed 7; a reader fallback expected 42 printed 4. It also exposed a
+pre-existing embedded-reader transport gap that the new syntax could reach.
+That gap now has an exact lowering refusal and a closed-function control.
+An enclosing annotation has its own refusal. The guard applies to matches;
+the existing `layout-function-record-branch` fixture still accepts its
+unreachable reader branch. General annotation and alias transport is not
+claimed fixed by this continuation.
+The independent probes and their captures are retained under
+`/Users/oobi/Documents/gpt1/brisk-record-evidence/review`.
+
+Final validation in the workspace copy passed all seven gates, capture
+`/Users/oobi/Documents/gpt1/.kanon-exec/run-CZ0dDB`: 46 parse fixtures,
+19 checker positives and 36 negative twins, 179 executable programs,
+15 exact lowering refusals, and all 22 instructions emitted and executed.
+The two new 100000-call fixtures peak at 21 and 30 slots. The counted core
+is 2000/2000 lines and the machine is 795/800. This run's denominator is
+415.245 raw milliseconds per kloc, with unchanged corpus hashes and pins.
+The five targeted mutants are detected as recorded in `MUTATION-LOG.md`.
+
+Validation used `/Users/oobi/Documents/gpt1/brisk`, a local copy of the
+clean source commit. The final patch is applied and staged in
+`/Users/oobi/Documents/brisk` only after the original checkout still matches
+that commit and the patch passes `git apply --check --index`.
+
+## Review round, 2026-09-08
+
+The review of the closed record match continuation accepted five findings.
+Each one is applied on the staged tree.
+
+F1 records in `STAGE-D-STATUS.md` and `SPEC.md` that a bound function field
+can carry a reader convention with no annotation, so a scrutinee that
+arrives through a parameter or an alias still lowers and then stops at run
+time with an argument kind error.
+F2, with F4 merged into it, narrows the reader value guard of `lower_match`
+to a match whose arms bind a record field, and two new VM pairs run a
+whole-value arm and a variant dispatch that the wide guard refused.
+F3 deletes `lower_ty`, because the checker converts every annotation with
+the same `Infer.conv_ty` before the lowering starts, and the deleted lines
+pay for the guard of F2.
+F5 rewrites the comment of `Ir.size`, which said that the build log quotes
+the node count, and records that no pass reads `Ir.size` or `Ir.pp`.
+F6 states the label totality rule of a closed record pattern in `SPEC.md`
+and `STAGE-D-STATUS.md`, and one new checker twin pins the `MissingLabel`
+answer of a partial pattern.
+
+The counted core falls to 1999 of 2000 lines and the machine stays at
+795 of 800. `main_floor` rises to 181, the negative twin floor rises to 37,
+and the two new VM pairs join the named fixtures. No gate is weakened, no
+IR arm or instruction is added, and the machine sources are unchanged.

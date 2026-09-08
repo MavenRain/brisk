@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 162 programs with their goldens, thirteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and twenty-seven deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and variant-fallback pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 181 programs with their goldens, fifteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and twenty-nine deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and pattern pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -364,7 +364,7 @@ newline.
 | `test/lower-neg/variant-match-open-tail.bk` and `.err` | none | NEW | A directly constructed injection still has an unresolved tail. Checked lowering refuses it. The program reaches the `Row.is_open` guard of `lower_match`. |
 | `test/vm/variant-match-nested-pattern.bk` and `.out` | former `test/lower-neg/variant-match-nested-pattern` pair | MOVED | Nested injection payload destructuring now lowers; the source is unchanged and its golden is `377`. The former diagnostic golden keeps its bytes as `test/lower-neg/variant-match-nested-open-tail.err`. |
 | `test/lower-neg/variant-match-nested-open-tail.bk` and `.err` | none | NEW | An injection pattern inspects a nested variant row whose tail is still open.  Checked lowering refuses it.  The program reaches the `Row.is_open` guard of `lower_dispatch` through the `PInj` arm of `lower_chain`. |
-| `test/lower-neg/variant-match-record-pattern.bk` and `.err` | none | NEW | Record payload destructuring remains refused after checking. The program reaches the `PRec` arm of `lower_chain`, after `lower_arm` collects the payload. |
+| `test/lower-neg/variant-match-record-pattern.bk` and `.err` | none | MOVED | Promoted to `test/vm/variant-match-record-pattern.bk` and `.out` by the closed record match continuation. The unchanged source prints `3`. |
 
 All thirteen `test/lower-neg` goldens hold the same bytes,
 `Not_yet 1:1-1:1 the form arrives at M1`.  The refusal leg therefore
@@ -419,3 +419,61 @@ adds separate 64-slot bounds for the two new deep fixtures.
 
 The diagnostic of `test/lower-neg/variant-match-nested-open-tail.err` is
 the same exact M1 line as the other refusals.
+
+## Closed record match continuation, 2026-09-07
+
+The source starts at `fc894ab`. All changes are new local work.
+`surface/lower.ml` adds success continuations and ordered field selections,
+restores lexical names at failed-field fallbacks, and checks source
+scrutinees for hidden reader arguments before match specialization.
+The check strips enclosing annotations but cannot recover reader metadata
+from already annotated aliases or conditional contents.
+The annotation validator reuses the existing counted `Infer.conv_ty`;
+the three stack searches use the pinned OCaml 5.2.1 standard library.
+`lib/ir.ml` and the free-variable walk consolidate identical cases.
+No checker or machine source changes, counted-path changes, dependencies,
+or instruction additions are involved.
+
+Each executable row below names a `.bk`/`.out` pair in `test/vm`.
+The `record_fixtures` agent derived the arithmetic oracles and later corrected
+their newline representation against the VM's exact-byte contract. Two
+coverage fixtures and one nested-reader helper were revised after the first
+suite run. The complete derivations and revision history are in
+`/Users/oobi/Documents/gpt1/brisk-record-evidence/fixtures.md`.
+
+| Pair | Origin | Witness and final stdout |
+| --- | --- | --- |
+| `variant-match-record-pattern` | MOVED | Unchanged former refusal now binds record field x. `3`. |
+| `record-pattern-order` | NEW | Input and pattern field permutations. `321654`. |
+| `record-pattern-occurrences` | NEW | Heterogeneous duplicate fields, reversed and sparse occurrences. `203424`. |
+| `record-pattern-nested` | NEW | Nested record layouts. `1551`. |
+| `record-pattern-ordered` | NEW | Later-field failures preserve source arm order. `105205408313407`. |
+| `record-pattern-variant-fallback` | NEW | Failed record tests preserve the original outer variant. `10020012213081004`. |
+| `record-pattern-nested-fallback` | NEW | Nested record and variant tests resume enclosing alternatives. `205210306306`. |
+| `record-pattern-capture-stack` | NEW | Captures and shadowed names below pending arguments. `182628`. |
+| `record-pattern-effects` | NEW | Scrutinee and field construction effects run once in source order. `010100111302212402`. |
+| `record-pattern-literal-kinds` | NEW | Boolean, string and unit field tests. `13022403`. |
+| `record-pattern-result-layout` | NEW | Branch and whole-record fallback result conversions. `100111822`. |
+| `record-pattern-inner-lambda` | NEW | Curried reader arm bodies and fallback captures. `212834`. |
+| `record-pattern-tail` | NEW | 100000 calls through field and whole-record alternatives. `112424`. |
+| `record-pattern-tail-reader` | NEW | 100000 calls retaining an enclosing reader's offsets. `152034`. |
+| `record-pattern-fallback-shadow` | NEW | Failed scalar binders do not shadow outer captures, including whole-variant fallbacks. `424344`. |
+| `record-pattern-fallback-reader-shadow` | NEW | Failed reader binders cannot reuse an outer offset vector. `42`. |
+| `record-pattern-function-field` | NEW | A stored function with a closed argument layout remains callable. `42` followed by a newline. |
+
+Three `.bk`/`.err` pairs in `test/lower-neg` parse and check before matching
+the exact `Not_yet 1:1-1:1 the form arrives at M1` diagnostic:
+
+| Pair | Origin | Guard |
+| --- | --- | --- |
+| `record-pattern-rest` | NEW | `lower_chain` refuses `PRec` with a rest binder. |
+| `record-pattern-reader-field` | NEW | `lower_match` refuses a visible embedded reader with an open record domain. |
+| `record-pattern-reader-annotation` | NEW | The same guard strips the enclosing record annotation before inferring the reader type. |
+
+### Review round fixtures, 2026-09-08
+
+| Files | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/record-pattern-reader-whole.bk` and `.out` | none | NEW | A match binds the whole record and reads one closed field, while a sibling field holds a reader over an open record.  No arm binds a record field, so the reader guard does not apply.  Hand derived golden `42` with no final newline. |
+| `test/vm/variant-match-reader-payload.bk` and `.out` | none | NEW | A variant dispatch binds a payload that holds a reader field.  The dispatch reads a closed field of the payload and lowers, because no arm binds a record field.  Hand derived golden `7` with no final newline. |
+| `test/neg/record-pattern-partial-label.bk` and `.err` | none | NEW | A record pattern that omits label `b` of a closed two field row fails the checker with `MissingLabel`, and a following whole-value arm does not repair it.  The twin pins the label totality rule of the record pattern. |

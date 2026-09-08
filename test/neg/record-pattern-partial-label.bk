@@ -1,0 +1,1 @@
+let read r = match (r : { a : int, b : int }) with | { a = x } -> x | whole -> 0

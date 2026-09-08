@@ -1,0 +1,5 @@
+let read r = match (r : { inside : { tag : < yes : int, no : int >, count : int }, trailing : int }) with | { inside = { tag = < yes n >, count = 0 }, trailing = 1 } -> n + 100 | { trailing = 2, inside = { count = k, tag = < yes n > } } -> k + n + 200 | whole -> whole.inside.count + whole.trailing + 300
+let a = print_int (read { trailing = 2, inside = { count = 0, tag = < yes 5 > } })
+let b = print_int (read { inside = { tag = < yes 7 >, count = 3 }, trailing = 2 })
+let c = print_int (read { trailing = 2, inside = { tag = < no 8 >, count = 4 } })
+let main = print_int (read { inside = { count = 5, tag = < yes 9 > }, trailing = 1 })

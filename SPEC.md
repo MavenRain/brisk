@@ -597,7 +597,7 @@ A variant block holds a tag and payload array.  The tag is the absolute
 position of the label occurrence in its closed variant row, including
 other labels before it.  A closed variant match uses one jump-table entry
 per physical tag.  Each entry tests that occurrence's payload patterns in
-source order.  Literal, name, wildcard and nested closed variant payload
+source order.  Literal, name, wildcard, closed record and nested closed variant payload
 patterns are supported.  A
 whole-variant name or wildcard supplies the fallback and takes priority
 over every later arm.  A named fallback binds the complete original
@@ -618,7 +618,7 @@ its offsets inside a nested arm body.  A nested payload pattern copies the
 fallback body once for each leaf of the nested dispatch.  Pattern depth
 therefore multiplies the emitted code together with the row width.
 Open variant scrutinees, including an open nested row that an injection
-pattern inspects, record payload patterns and a field read through a
+pattern inspects, and a field read through a
 variant payload binder of an open record type retain `Not_yet M1` refusals.
 Literal matches lower to a chain of conditionals, one test per arm, and
 the test follows the kind of the literal.  An integer arm compares with
@@ -628,9 +628,39 @@ always holds and needs no test.  A literal arm list with no name or
 wildcard arm has no residual case;  lowering answers `Not_yet M1` there,
 but the checker refuses that arm list first as non-exhaustive, including
 a complete `true` and `false` pair, so the lowering case is not reachable
-from a checked program.  Record patterns are intended to lower to field
-selections and bindings, but the current lowering refuses them with
-`Not_yet M1`.
+from a checked program.
+
+Closed record match patterns without a rest binder lower to field selections
+and bindings. Each field uses its label and occurrence in the saved record's
+physical row, independently of pattern field order. Sparse occurrence indices
+retain the checker's shared-slot interpretation. Fields can contain literal,
+closed variant and nested record tests. Tests run in pattern order; a failed
+test resumes the next source arm, including an enclosing variant fallback.
+Earlier fields remain on the stack, but their names are hidden before the
+fallback is lowered. This keeps outer captures, shadowed readers and dynamic
+offsets in their original scope. The record expression runs once, and field
+selections do not replay its construction effects. Result layouts and tail
+position pass through the successful field continuation.
+
+Rest binders, open record pattern layouts and record patterns in lambda or
+let bindings retain `Not_yet M1` refusals. A field binding of an open record
+does not acquire dynamic reader offsets from its enclosing record. A closed
+record pattern
+must name every distinct label of the row, and for a repeated label at least
+its highest occurrence. An unwanted field is written `l = _`, because a
+missing label fails the checker with `MissingLabel` and not with an M1
+refusal. Match
+scrutinees with visible functions over open record domains are refused before
+arm specialization, when an arm of the match binds a record field. This check
+strips enclosing annotations before inferring
+the producer type. It does not recover a hidden reader convention that a
+parameter, an alias, a conditional branch or a bound record field carries.
+Those
+existing transport paths remain unsupported and can fail at runtime; this
+guard does not establish general reader transport safety. Closed function
+fields work. Failed field tests
+copy the remaining arms at each failure point; nested tests can
+multiply code size, under the same M1 join limitation as variant fallbacks.
 
 `Value.nth` returns an option, and machine reads handle a missing slot
 with a named error.  It guards the index against the bounds and reads
@@ -678,7 +708,7 @@ The VM is a tail-recursive OCaml walk over the instruction array with
 one accumulator and an explicit value stack.  Tail position passes into
 lambda bodies, conditional arms, match arms and let bodies.  A call in
 tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
-recursion fixture and twenty-seven named layout and match regressions make at least
+recursion fixture and twenty-nine named layout and match regressions make at least
 100,000 calls.  SUITE-VM requires each fixture and its golden to exist and
 each maximum stack use to stay at or below 64 slots.
 
@@ -721,10 +751,10 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-162 programs, no failures and consistent counts.  It also requires
+181 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
-The same gate runs at least thirteen `test/lower-neg` programs through
-`test/refusals.exe`, and the tree ships thirteen.  Each must parse and type
+The same gate runs at least fifteen `test/lower-neg` programs through
+`test/refusals.exe`, and the tree ships fifteen. Each must parse and type
 check, then fail lowering
 with exactly its hand-written `.err` diagnostic.  Successful lowering,
 an earlier rejection, a missing golden or an empty corpus fails the gate.

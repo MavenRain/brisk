@@ -782,3 +782,35 @@ expected output comes from a source-level pattern evaluator.  All
 ordered fallthrough, whole-value bindings, closures and open-record
 offset forwarding.  Its generator and capture `run-Lz2A8d` are retained
 under `brisk-destructure-evidence/review`.
+
+## Closed record match continuation, 2026-09-07
+
+The `next_slice` agent built an unchanged control and five isolated mutants
+under `/Users/oobi/Documents/gpt1/brisk-record-evidence/mutations`.
+Its preparation script pins the exact number of replaced source fragments,
+copies source files without build artifacts, and records the source hashes.
+The initial control passes 32 VM fixtures and two exact reader refusals.
+Every initial mutant builds successfully, so failures below come from tests.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| RP-M1: replace each field selection offset with zero | `record-pattern-order`, `record-pattern-occurrences`, and twelve other fixtures | Fourteen of 32 fail. |
+| RP-M2: read the saved record at constant depth zero | `record-pattern-nested` and thirteen other fixtures | Fourteen of 32 fail. |
+| RP-M3: omit fallback forwarding from `lower_fields` | `record-pattern-ordered` and eleven other fixtures | Twelve of 32 fail. |
+| RP-M4: restore metadata but keep the failed arm's slot names at both fallback sites | `record-pattern-capture-stack`, `record-pattern-fallback-reader-shadow`, `record-pattern-fallback-shadow` | Three stdout goldens differ. |
+
+These four runs use the intermediate broad reader-guard snapshot. The
+matcher code under mutation is unchanged in the final tree. Their control
+capture is `captures/run-ILSRVw` and mutant capture is `captures/run-uaxLJF`.
+The initial reader-guard mutation is superseded by a final-source rerun
+after the guard was narrowed to matches to preserve the existing
+`layout-function-record-branch` behavior.
+
+The final control passes all 33 positive fixtures, including that existing
+branch fixture, and both reader refusals. RP-M5 removes the match reader
+guard. Its build is clean; both `record-pattern-reader-field` and
+`record-pattern-reader-annotation` then fail with `lowering accepted a
+refused program`, giving `REFUSALS files=2 ok=0 fail=2`.
+Final control and RP-M5 capture: `captures/run-FGUu3H`. The `final` directory
+holds its source manifest and result JSON files. All five targeted mutants
+were detected; the broader M0 completion mutations remain outside this slice.

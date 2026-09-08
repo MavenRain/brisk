@@ -1,0 +1,6 @@
+let unpack r = match (r.tag : < go : int, stop : int >) with | < go n > -> n + r.last | < stop n > -> n + r.last + 10
+let rec walk count r = match (r : { tag : < go : int, stop : int >, last : int }) with | { tag = < go 0 >, last = 0 } -> if count == 0 then 1 else walk (count - 1) r | { tag = < go n >, last = k } -> if count == 0 then n + k else walk (count - 1) r | whole -> if count == 0 then unpack whole else walk (count - 1) whole
+let a = print_int (walk 100000 { last = 0, tag = < go 0 > })
+let b = print_int (walk 100000 { tag = < go 7 >, last = 5 })
+let c = print_int (walk 100000 { last = 4, tag = < go 0 > })
+let main = print_int (walk 100000 { tag = < stop 8 >, last = 6 })

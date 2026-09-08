@@ -1,0 +1,1 @@
+let main = print_int (match { k = 42, f = fun r -> r.n } with | whole -> whole.k)

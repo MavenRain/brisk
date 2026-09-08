@@ -1,0 +1,6 @@
+let call g = g { a = 1, b = 2 }
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n
+let pick outer r = let step = 2 in ((match (r : { tag : < hit : int, miss : int >, base : int }) with | { tag = < hit n >, base = base } -> fun s -> s.a + n + outer + step + base | { base = base, tag = < miss 0 > } -> fun s -> s.b + outer + step + base | whole -> fun s -> s.b + inner whole.tag + outer + step + whole.base) : { a : int, b : int } -> int)
+let a = print_int (call (pick 10 { base = 3, tag = < hit 5 > }))
+let b = print_int (call (pick 20 { base = 4, tag = < miss 0 > }))
+let main = print_int (call (pick 20 { tag = < miss 6 >, base = 4 }))

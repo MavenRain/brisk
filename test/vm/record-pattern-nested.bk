@@ -1,0 +1,3 @@
+let read r = match (r : { data : { b : int, a : int }, z : int }) with | { z = offset, data = { a = first, b = second } } -> offset + 10 * first + second
+let a = print_int (read { z = 3, data = { a = 1, b = 2 } })
+let main = print_int (read { data = { b = 5, a = 4 }, z = 6 })

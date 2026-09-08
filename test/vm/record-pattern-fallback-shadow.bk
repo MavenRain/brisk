@@ -1,0 +1,5 @@
+let probe x = match { a = 7, b = 1 } with | { a = x, b = 0 } -> 99 | _ -> x
+let probe_variant x v = match (v : < box : { a : int, b : int }, other : int >) with | < box { a = x, b = 0 } > -> 99 | whole -> let captured = fun n -> x + n in match whole with | < box r > -> captured r.b | < other n > -> captured n
+let a = print_int (probe 42)
+let b = print_int (probe_variant 42 (< box { b = 1, a = 7 } >))
+let main = print_int (probe_variant 42 (< other 2 >))

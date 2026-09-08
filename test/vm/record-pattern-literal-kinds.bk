@@ -1,0 +1,5 @@
+let read r = match (r : { flag : bool, text : string, done : unit }) with | { flag = true, text = "a", done = () } -> 1 | { done = (), text = "x", flag = false } -> 2 | { text = text, flag = flag, done = _ } -> string_length text + (if flag then 300 else 400)
+let a = print_int (read { done = (), text = "a", flag = true })
+let b = print_int (read { flag = true, done = (), text = "bb" })
+let c = print_int (read { text = "x", flag = false, done = () })
+let main = print_int (read { done = (), flag = false, text = "ccc" })

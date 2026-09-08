@@ -1,0 +1,6 @@
+let read r = match (r : { l : int, z : int, l : bool, l : string }) with | { l ^ 2 = text, z = base, l ^ 1 = flag, l = first } -> first + base + string_length text + (if flag then 10 else 20)
+let sparse r = match (r : { z : int, l : int, l : bool, l : string }) with | { l ^ 2 = text, z = _ } -> string_length text
+let a = print_int (read { l = 1, l = true, z = 7, l = "ok" })
+let b = print_int (read { z = 8, l = 2, l = false, l = "long" })
+let c = print_int (sparse { l = 1, z = 7, l = true, l = "ok" })
+let main = print_int (sparse { l = 2, l = false, l = "long", z = 8 })

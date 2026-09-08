@@ -1,0 +1,5 @@
+let unpack r = let aligned = (r : { item : { value : < go : int, stop : int >, extra : int }, pad : int }) in match aligned.item.value with | < go n > -> n + aligned.item.extra + aligned.pad | < stop n > -> n + aligned.item.extra + aligned.pad + 10
+let rec walk count r = match (r.tag : { item : { value : < go : int, stop : int >, extra : int }, pad : int }) with | { item = { value = < go n >, extra = offset }, pad = 0 } -> if count == 0 then n + offset + r.extra else walk (count - 1) r | { pad = other, item = { extra = offset, value = < go n > } } -> if count == 0 then n + offset + other + r.extra else walk (count - 1) r | whole -> if count == 0 then unpack whole + r.extra else walk (count - 1) r
+let a = print_int (walk 100000 { extra = 5, tag = { pad = 0, item = { extra = 3, value = < go 7 > } }, spare = 1 })
+let b = print_int (walk 100000 { tag = { item = { value = < go 8 >, extra = 4 }, pad = 2 }, spare = 2, extra = 6 })
+let main = print_int (walk 100000 { spare = 3, extra = 7, tag = { pad = 3, item = { value = < stop 9 >, extra = 5 } } })

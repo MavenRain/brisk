@@ -1,0 +1,6 @@
+let add a b = a + b
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n + 10
+let read outer r = add 1 (let local = 2 in match (r : { a : int, b : int, gate : < hit : int, miss : int > }) with | { a = outer, gate = < hit payload >, b = 0 } -> let captured = fun extra -> local + outer + payload + extra in captured 3 | { b = local, gate = < miss payload >, a = value } -> let captured = fun extra -> local + outer + value + payload + extra in captured 3 | whole -> let captured = fun extra -> local + outer + whole.a + whole.b + inner whole.gate + extra in captured 3)
+let a = print_int (read 4 { b = 0, a = 5, gate = < hit 7 > })
+let b = print_int (read 4 { gate = < miss 7 >, a = 5, b = 6 })
+let main = print_int (read 4 { a = 5, b = 6, gate = < hit 7 > })

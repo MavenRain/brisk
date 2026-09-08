@@ -1,0 +1,5 @@
+let make n = let shown = print_int n in { tag = (let shown = print_int (n + 10) in if n == 2 then < miss n > else < hit n >), last = n }
+let read n = match (make n : { tag : < hit : int, miss : int >, last : int }) with | { tag = < hit 0 >, last = 0 } -> 100 | { last = 0, tag = < hit v > } -> v + 200 | { tag = < hit v >, last = k } -> v + k + 300 | whole -> whole.last + 400
+let a = print_int (read 0)
+let b = print_int (read 1)
+let main = print_int (read 2)

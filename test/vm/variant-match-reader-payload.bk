@@ -1,0 +1,2 @@
+let p = (< some { f = fun r -> r.n, k = 7 } > : < some : { f : { n : int | rho } -> int, k : int } >)
+let main = match p with | < some w > -> print_int w.k

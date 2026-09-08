@@ -4,7 +4,7 @@ Stage D remains in progress.  The reader continuation starts at `674f89c`,
 the stack-slot repair at `3259c4d`, layout reconciliation at `e3b42be`,
 tail-call preservation at `42dd749`, recursive group layout settlement
 at `2b4a6e2`, ordered variant matches at `dca2985`, and nested variant
-patterns at `6d0a9bd`.
+patterns at `6d0a9bd`, and closed record match patterns at `fc894ab`.
 The known closed-record and contextual-variant reproductions now pass.
 The Stage E driver and speed gates remain unimplemented.
 
@@ -100,7 +100,7 @@ fifteen `stack-*` regressions retain their semantic outputs.
 
 ## Explicit lowering refusals
 
-Thirteen fixtures parse and check successfully before answering the exact
+Fifteen fixtures parse and check successfully before answering the exact
 `Not_yet M1` diagnostic:
 
 - Open-row restriction, which requires the full residual layout.
@@ -116,7 +116,9 @@ Thirteen fixtures parse and check successfully before answering the exact
 - Accepting an open variant parameter whose unknown tail can flow through.
 - Matching an open variant scrutinee with a catch-all arm.
 - Destructuring a nested injection whose variant row still has an open tail.
-- Destructuring a record inside a variant payload pattern.
+- Binding the residual record with a record pattern's rest name.
+- Matching a value containing a function with an open record domain.
+- Hiding that reader's domain with an annotation on the enclosing record.
 
 Unknown record results can carry a
 physical order different from their inferred prefix.  An open variant
@@ -175,12 +177,51 @@ the promoted nested-pattern refusal.
 Two pairs make 100000 calls and have individual 64-slot bounds, including
 recursion through a failed inner tag into an outer fallback and a reader
 of an open record parameter.  A replacement refusal pins an open nested
-variant row.  Record destructuring remains unimplemented.
-The fallback body keeps the lexical metadata of its own dispatch level
-and takes only the frame of the failure point.  No M0 program can observe
-the difference today, because only the frame changes along a fallback
-path.  A mutant that passes the complete context of the failure point
-therefore survives the battery.
+variant row. At the nested-only commit, fallback paths added only unnamed
+slots, so replacing their lexical context with the failure context was
+unobservable. Record field binders now make that difference observable.
+
+## Closed record match patterns
+
+Closed record patterns without a rest binder now work directly in matches
+and inside variant payloads. Static field selections use the actual row's
+label and occurrence, so reordered fields, repeated labels and sparse
+occurrence indices keep their meaning. Literal, variant and record field
+patterns share the ordered match walk. A failed later field resumes the
+next arm with its original lexical names, reader metadata and captures.
+The failed arm's slots remain on the stack but are anonymous in that scope.
+
+Seventeen new VM pairs include the promoted record payload refusal. They
+cover nested tests, whole-value fallbacks, shadowed ordinary and reader
+bindings, effects, temporary slots, closures, result layout conversion and
+curried reader bodies and closed function fields. Two pairs make 100000
+calls and retain individual 64-slot bounds. A replacement refusal pins
+closed record rest binding. Two additional refusals pin hidden reader
+arguments in a scrutinee, both directly and through an enclosing annotation.
+The match guard infers the source type with enclosing annotations stripped.
+It applies only to a match whose arms bind a record field, because no other
+arm shape lifts a reader out of the matched value.
+Already annotated aliases and conditionals with annotated contents can still
+hide embedded reader conventions and fail at runtime. A record pattern that
+binds a function field can also hide a reader convention
+with no annotation anywhere. If the scrutinee reaches the match through a
+function parameter or a plain let alias, the source type is already closed,
+the guard answers false, the program lowers, and the machine stops with an
+argument kind error. The program:
+`let apply = fun h -> match h with | { f = read } -> read { pad = 8, n = 42 }`
+and `let shown = print_int (apply { f = fun r -> r.n })` shows the fault.
+HEAD fc894ab refuses the same program with `Not_yet the form arrives at M1`.
+This remains an
+unsupported transport path, and the guard is not a general safety proof.
+A closed record pattern
+must name every distinct label of the row, and for a repeated label at least
+its highest occurrence. Lower occurrences can be left out. An unwanted field
+is written `l = _`, because a missing label fails the checker with
+`MissingLabel` and not with an M1 refusal.
+Record patterns in lambda and let bindings, open record pattern layouts
+and general reader transport through extracted fields remain unsupported.
+`Ir.size` and `Ir.pp` have no consumer in the tree. The D-D-C44 merge is a
+line budget edit inside code that no pass reads.
 
 The HOUSE wildcard and partial-operation rule now scans OCaml sources,
 matching its implementation-language scope.  Brisk wildcard fixtures are
@@ -191,16 +232,17 @@ valid language programs.  An injected OCaml wildcard still fails HOUSE.
 Design explicit layout transport for open record results, open variant
 parameters and general higher-order reader values.  General reader
 transport through records and returned conditional values remains
-outside the supported signature paths.  General record destructuring
-retains its existing lowering refusals.
+outside the supported signature paths. Record rest bindings and record
+destructuring in lambdas and lets retain their lowering refusals.
 
-The gate requires 162 executable programs, thirteen exact lowering refusals,
+The gate requires 181 executable programs, fifteen exact lowering refusals,
 all 22 instructions emitted and executed, and at most 64 slots in the
-100,000-call tail recursion fixture and each of twenty-seven named deep
+100,000-call tail recursion fixture and each of twenty-nine named deep
 layout and match fixtures.  The checker requires 19 positive fixtures and
-36 negative twins.  The counted core is 2000/2000 lines and the machine
-is 795/800.  Variant payload tests reuse `lower_chain` and `lower_dispatch`;
-the IR size counter shares the same fold for function and switch bodies.
+37 negative twins. The counted core is 1999/2000 lines and the machine
+is 795/800. Record and variant tests share match continuations. Identical
+IR size and free-variable cases share branches, stack searches use the
+pinned standard library, and the checker alone converts an annotation.
 No logic moved outside the counted files and no cap or path changed.
 
 `Value.nth` retains its guarded constant-time array read.  Effect frames

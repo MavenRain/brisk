@@ -1,0 +1,6 @@
+let read r = match (r : { first : < hit : int, miss : int >, last : int, carry : int }) with | { carry = held, first = < hit 0 >, last = 0 } -> held + 100 | { first = < hit n >, last = 2, carry = held } -> n + held + 200 | { last = 7, carry = held, first = < miss n > } -> n + held + 300 | whole -> whole.last + whole.carry + 400
+let a = print_int (read { carry = 5, last = 0, first = < hit 0 > })
+let b = print_int (read { first = < hit 0 >, carry = 5, last = 2 })
+let c = print_int (read { last = 3, first = < hit 9 >, carry = 5 })
+let d = print_int (read { carry = 5, first = < miss 8 >, last = 7 })
+let main = print_int (read { first = < miss 8 >, last = 2, carry = 5 })

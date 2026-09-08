@@ -1,0 +1,9 @@
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n + 10
+let unpack v = match (v : < box : { tag : < hit : int, miss : int >, last : int }, other : int >) with | < box r > -> inner r.tag + r.last | < other n > -> n + 1000
+let read v = match (v : < box : { tag : < hit : int, miss : int >, last : int }, other : int >) with | < box { tag = < hit 0 >, last = 0 } > -> 100 | < box { last = 2, tag = < hit n > } > -> n + 200 | < box { tag = < miss n >, last = 7 } > -> n + 300 | whole -> unpack whole
+let a = print_int (read (< box { last = 0, tag = < hit 0 > } >))
+let b = print_int (read (< box { tag = < hit 0 >, last = 2 } >))
+let c = print_int (read (< box { last = 3, tag = < hit 9 > } >))
+let d = print_int (read (< box { tag = < miss 8 >, last = 3 } >))
+let e = print_int (read (< box { last = 7, tag = < miss 8 > } >))
+let main = print_int (read (< other 4 >))
