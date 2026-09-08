@@ -1,2 +1,0 @@
-let read v = match (v : < box : < a : int, b : int >, other : int >) with | < box < a n > > -> n | remaining -> 7
-let main = print_int (read (< box < a 3 > >))

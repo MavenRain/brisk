@@ -744,3 +744,41 @@ repeated occurrences, unreachable arms, shadowing, captures and a
 in `run-JEWmVD`.  Its focused census lacks full instruction coverage;
 the complete gate supplies the 22/22 result.
 The sources and captures are retained in `brisk-patterns-evidence/review/`.
+
+## Nested variant pattern continuation, 2026-09-07
+
+The baseline `6d0a9bd` executable refuses all eleven new
+`nested-pattern-*` programs after successful parsing and checking.
+The final source passes those eleven pairs plus the promoted
+`variant-match-nested-pattern` case.  The full gate passes 161 programs,
+thirteen refusals and all 22 emitted and executed instructions.  The
+100000-call nested tail and reader fixtures peak at 15 and 14 slots.
+
+A verifier built an isolated unchanged source copy and four independent
+mutants.  All five builds exited zero.  The unchanged copy passes all
+twelve VM pairs and the nested open-tail refusal.  Every mutant is
+detected by an unchanged regression or refusal golden.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| NP-M1: replace whole-value fallback depth with constant one | `nested-pattern-effects`, `nested-pattern-tail`, `nested-pattern-whole-fallback` | Three of twelve fail, two stdout differences and one variant-block error; exit one. |
+| NP-M2: omit the enclosing fallback when recursively dispatching a payload | `nested-pattern-effects`, `nested-pattern-tail`, `nested-pattern-whole-fallback`, `variant-match-nested-pattern` | Four of twelve fail lowering with M1; exit one. |
+| NP-M3: remove the open-row guard from `lower_dispatch` | `variant-match-nested-open-tail` | The refusal runner reports `lowering accepted a refused program`; exit one. |
+| NP-M4: omit `List.rev selected` in each dispatch | `nested-pattern-capture-stack`, `nested-pattern-depth-three` | Two of twelve stdout goldens differ; exit one. |
+| NP-M5: pass the complete context of the failure point to the whole-value fallback | none | All 162 executable programs and the thirteen refusals pass.  The mutant is equivalent while only the frame differs on a fallback path. |
+
+Build and execution captures, source hashes, mutation diffs and exact
+commands are under
+`/Users/oobi/Documents/gpt8/brisk-destructure-evidence/mutations`.
+The unmodified build, VM and refusal captures are `run-lxxs0b`,
+`run-oLeucl` and `run-QmAWQA` in its `exec` directory.  Mutation execution
+captures NP-M1 through NP-M4 are `run-ShQ7HB`, `run-2MTfDn`,
+`run-HBAw5e` and `run-H2mpV2` respectively.  No mutant of NP-M1 through
+NP-M4 survived.
+
+The generated review battery holds 40 deterministic programs.  Their
+expected output comes from a source-level pattern evaluator.  All
+1400 calls pass with the new lowerer, covering depths two through five,
+ordered fallthrough, whole-value bindings, closures and open-record
+offset forwarding.  Its generator and capture `run-Lz2A8d` are retained
+under `brisk-destructure-evidence/review`.

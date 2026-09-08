@@ -235,7 +235,7 @@ leg_suite_check () {
 # masking a removed regression.
 leg_suite_vm () {
   local out code line n r s k m census stack peak fixture tail_fixture
-  local main_floor=149
+  local main_floor=162
   local tail_files=(
     $ROOT/test/vm/tailrec.bk
     $ROOT/test/vm/tail-record-if.bk
@@ -263,6 +263,8 @@ leg_suite_vm () {
     $ROOT/test/vm/variant-fallback-tail-explicit.bk
     $ROOT/test/vm/variant-fallback-tail-whole.bk
     $ROOT/test/vm/variant-fallback-tail-reader.bk
+    $ROOT/test/vm/nested-pattern-tail.bk
+    $ROOT/test/vm/nested-pattern-tail-reader.bk
   )
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
@@ -295,6 +297,17 @@ leg_suite_vm () {
     $ROOT/test/vm/variant-fallback-stack.bk
     $ROOT/test/vm/variant-fallback-variable-first.bk
     $ROOT/test/vm/variant-fallback-wildcard-first.bk
+    $ROOT/test/vm/variant-match-nested-pattern.bk
+    $ROOT/test/vm/nested-pattern-depth-three.bk
+    $ROOT/test/vm/nested-pattern-ordered.bk
+    $ROOT/test/vm/nested-pattern-whole-fallback.bk
+    $ROOT/test/vm/nested-pattern-occurrences.bk
+    $ROOT/test/vm/nested-pattern-record-payload.bk
+    $ROOT/test/vm/nested-pattern-result-layout.bk
+    $ROOT/test/vm/nested-pattern-capture-stack.bk
+    $ROOT/test/vm/nested-pattern-effects.bk
+    $ROOT/test/vm/nested-pattern-literal-kinds.bk
+    $ROOT/test/vm/nested-pattern-inner-lambda.bk
   )
   for fixture in $named_files; do
     if [[ ! -f $fixture || ! -f ${fixture:r}.out ]]; then
@@ -305,7 +318,7 @@ leg_suite_vm () {
   local refused=($ROOT/test/lower-neg/*.bk(N))
   local named_refusals=(
     $ROOT/test/lower-neg/variant-match-open-tail.bk
-    $ROOT/test/lower-neg/variant-match-nested-pattern.bk
+    $ROOT/test/lower-neg/variant-match-nested-open-tail.bk
     $ROOT/test/lower-neg/variant-match-record-pattern.bk
   )
   for fixture in $named_refusals; do

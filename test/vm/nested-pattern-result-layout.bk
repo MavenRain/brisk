@@ -1,0 +1,5 @@
+let choose v = match (v : < box : < hit : int, miss : int >, other : int >) with | < box < hit n > > -> { a = n, b = n + 10 } | < box < miss n > > -> { b = n + 20, a = n } | < other n > -> { b = n + 30, a = n }
+let read r = (r : { b : int, a : int }).b
+let a = print_int (read (choose (< box (< hit 3 >) >)))
+let b = print_int (read (choose (< box (< miss 4 >) >)))
+let main = print_int (read (choose (< other 5 >)))

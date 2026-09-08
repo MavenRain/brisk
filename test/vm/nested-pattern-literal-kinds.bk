@@ -1,0 +1,10 @@
+let read_bool v = match (v : < box : < hit : bool, miss : int > >) with | < box < hit true > > -> 1 | < box < hit yes > > -> if yes then 9 else 2 | < box < miss n > > -> n + 10
+let read_string v = match (v : < box : < text : string > >) with | < box < text "a" > > -> 100 | < box < text "bb" > > -> 200 | < box < text s > > -> string_length s + 300
+let read_unit v = match (v : < box : < done : unit > >) with | < box < done () > > -> 7 | < box < done _ > > -> 8
+let a = print_int (read_bool (< box (< hit true >) >))
+let b = print_int (read_bool (< box (< hit false >) >))
+let c = print_int (read_bool (< box (< miss 8 >) >))
+let d = print_int (read_string (< box (< text "a" >) >))
+let e = print_int (read_string (< box (< text "bb" >) >))
+let f = print_int (read_string (< box (< text "ccc" >) >))
+let main = print_int (read_unit (< box (< done () >) >))

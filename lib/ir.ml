@@ -38,14 +38,13 @@ type t =
   | IPrim of Primop.t * t list
 
 (* size counts the nodes of the tree, which the build log quotes as the
-   one number of the lowering.  The four walks are one recursive group,
+   one number of the lowering.  The three walks are one recursive group,
    so each list shape is read by a total fold and never by an index. *)
 let rec size (e : t) : int =
   match e with
-  | ILit _ -> 1
-  | IVar _ -> 1
+  | ILit _ | IVar _ -> 1
   | ILam (_, b) -> 1 + size b
-  | IFix (fs, b) -> 1 + size_bindings fs + size b
+  | IFix (fs, b) -> 1 + size_pairs fs + size b
   | IApp (f, xs) -> 1 + size f + size_list xs
   | ILet (v, b) -> 1 + size v + size b
   | IIf (c, a, b) -> 1 + size c + size a + size b
@@ -55,19 +54,14 @@ let rec size (e : t) : int =
   | ISel (r, _) -> 1 + size r
   | ISelDyn (r, k) -> 1 + size r + size k
   | IBlock (_, xs) -> 1 + size_list xs
-  | ISwitch (s, arms) -> 1 + size s + size_arms arms
+  | ISwitch (s, arms) -> 1 + size s + size_pairs arms
   | IPrim (_, xs) -> 1 + size_list xs
 
 and size_list (xs : t list) : int =
   List.fold_left (fun (acc : int) (x : t) -> acc + size x) 0 xs
 
-and size_bindings (fs : (int list * t) list) : int =
-  List.fold_left
-    (fun (acc : int) ((_, b) : int list * t) -> acc + size b)
-    0 fs
-
-and size_arms (arms : (int * t) list) : int =
-  List.fold_left (fun (acc : int) ((_, b) : int * t) -> acc + size b) 0 arms
+and size_pairs : 'a. ('a * t) list -> int = fun xs ->
+  List.fold_left (fun (acc : int) (_, b) -> acc + size b) 0 xs
 
 let pp_lit (l : Literal.t) : string =
   match l with

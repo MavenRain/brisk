@@ -1,0 +1,1 @@
+let main = print_int (match (< box < a 3 > > : < box : < a : int | r > >) with | < box < a 0 > > -> 1 | remaining -> 7)

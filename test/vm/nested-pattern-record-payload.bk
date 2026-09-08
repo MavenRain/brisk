@@ -1,0 +1,5 @@
+let read v = match (v : < box : < full : { b : int, a : int, a : bool }, skip : int >, other : int >) with | < box < full r > > -> let rest = { r - a } in r.b + (if rest.a then 10 else 20) | < box < skip n > > -> n | < other n > -> n + 100
+let a = print_int (read (< box (< full { a = 1, a = true, b = 7 } >) >))
+let b = print_int (read (< box (< full { b = 8, a = 2, a = false } >) >))
+let c = print_int (read (< box (< skip 3 >) >))
+let main = print_int (read (< other 4 >))

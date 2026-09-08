@@ -1,0 +1,7 @@
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n + 10 | < miss n > -> n + 20
+let unpack v = match (v : < box : < hit : int, miss : int >, other : int >) with | < box v > -> inner v | < other n > -> n + 100
+let read v = match (v : < box : < hit : int, miss : int >, other : int >) with | < box < hit 0 > > -> 100 | whole -> unpack whole
+let a = print_int (read (< box (< hit 0 >) >))
+let b = print_int (read (< box (< hit 7 >) >))
+let c = print_int (read (< box (< miss 8 >) >))
+let main = print_int (read (< other 9 >))

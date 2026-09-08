@@ -1,0 +1,6 @@
+let read v = match (v : < pack : < a : int, z : int, a : bool >, skip : int >) with | < pack < a ^ 1 true > > -> 9 | < pack < a ^ 1 yes > > -> if yes then 1 else 0 | < pack < a n > > -> n | < pack < z n > > -> n + 100 | < skip n > -> n + 200
+let a = print_int (read (< pack (< a ^ 1 true >) >))
+let b = print_int (read (< pack (< a 7 >) >))
+let c = print_int (read (< pack (< a ^ 1 false >) >))
+let d = print_int (read (< pack (< z 8 >) >))
+let main = print_int (read (< skip 5 >))

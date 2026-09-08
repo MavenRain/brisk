@@ -1,0 +1,7 @@
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n + 10
+let unpack v = match (v : < box : < hit : int, miss : int >, other : int >) with | < box v > -> inner v | < other n > -> n + 100
+let call g = g { a = 1, b = 2 }
+let pick outer v = let step = 2 in ((match (v : < box : < hit : int, miss : int >, other : int >) with | < box < hit n > > -> fun r -> r.a + n + outer + step | < box < miss n > > -> fun r -> r.b + n + outer + step | whole -> fun r -> r.b + outer + step + unpack whole) : { a : int, b : int } -> int)
+let a = print_int (call (pick 10 (< box (< hit 5 >) >)))
+let b = print_int (call (pick 20 (< box (< miss 6 >) >)))
+let main = print_int (call (pick 30 (< other 7 >)))

@@ -1,0 +1,6 @@
+let unpack v = match (v : < box : < go : int, stop : int >, other : int >) with | < box < go n > > -> n | < box < stop n > > -> n + 10 | < other n > -> n + 100
+let rec walk count v = match (v : < box : < go : int, stop : int >, other : int >) with | < box < go 0 > > -> if count == 0 then 1 else walk (count - 1) v | < box < go n > > -> if count == 0 then n else walk (count - 1) v | whole -> if count == 0 then unpack whole else walk (count - 1) whole
+let a = print_int (walk 100000 (< box (< go 7 >) >))
+let b = print_int (walk 100000 (< box (< go 0 >) >))
+let c = print_int (walk 100000 (< box (< stop 8 >) >))
+let main = print_int (walk 100000 (< other 9 >))

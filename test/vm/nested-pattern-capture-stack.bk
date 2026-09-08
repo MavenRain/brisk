@@ -1,0 +1,7 @@
+let add a b = a + b
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n + 10
+let unpack v = match (v : < box : < hit : int, miss : int >, other : int >) with | < box v > -> inner v | < other n > -> n + 100
+let read outer v = add 1 (let local = 2 in match (v : < box : < hit : int, miss : int >, other : int >) with | < box < hit payload > > -> let outer = payload in let captured = fun extra -> local + outer + extra in captured 3 | < box rest > -> let local = 10 in let captured = fun extra -> local + outer + inner rest + extra in captured 3 | whole -> let captured = fun extra -> local + outer + unpack whole + extra in captured 3)
+let a = print_int (read 4 (< box (< hit 5 >) >))
+let b = print_int (read 4 (< box (< miss 5 >) >))
+let main = print_int (read 4 (< other 5 >))

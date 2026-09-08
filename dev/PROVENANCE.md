@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 149 programs with their goldens, thirteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and twenty-five deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and variant-fallback pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 162 programs with their goldens, thirteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and twenty-seven deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and variant-fallback pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -362,11 +362,60 @@ newline.
 | `test/vm/variant-fallback-literal-string.bk` and `.out` | none | NEW | Distinct string payload alternatives share a tag. Golden `121324`. |
 | `test/vm/variant-fallback-literal-bool-unit.bk` and `.out` | none | NEW | Boolean and unit tests coexist with a whole fallback. Golden `110234`. |
 | `test/lower-neg/variant-match-open-tail.bk` and `.err` | none | NEW | A directly constructed injection still has an unresolved tail. Checked lowering refuses it. The program reaches the `Row.is_open` guard of `lower_match`. |
-| `test/lower-neg/variant-match-nested-pattern.bk` and `.err` | none | NEW | Nested injection payload destructuring remains refused after checking. The program reaches the single `PInj` and `PRec` arm of `lower_chain` through its `PInj` alternative, after `lower_arm` collects the payload. |
-| `test/lower-neg/variant-match-record-pattern.bk` and `.err` | none | NEW | Record payload destructuring remains refused after checking. The program reaches the same arm of `lower_chain` through its `PRec` alternative, after `lower_arm` collects the payload. |
+| `test/vm/variant-match-nested-pattern.bk` and `.out` | former `test/lower-neg/variant-match-nested-pattern` pair | MOVED | Nested injection payload destructuring now lowers; the source is unchanged and its golden is `377`. The former diagnostic golden keeps its bytes as `test/lower-neg/variant-match-nested-open-tail.err`. |
+| `test/lower-neg/variant-match-nested-open-tail.bk` and `.err` | none | NEW | An injection pattern inspects a nested variant row whose tail is still open.  Checked lowering refuses it.  The program reaches the `Row.is_open` guard of `lower_dispatch` through the `PInj` arm of `lower_chain`. |
+| `test/lower-neg/variant-match-record-pattern.bk` and `.err` | none | NEW | Record payload destructuring remains refused after checking. The program reaches the `PRec` arm of `lower_chain`, after `lower_arm` collects the payload. |
 
 All thirteen `test/lower-neg` goldens hold the same bytes,
 `Not_yet 1:1-1:1 the form arrives at M1`.  The refusal leg therefore
 pins the count of refused programs and the diagnostic.  It does not pin
 which guard a program reaches.  The purpose column above names the
 guard for each new fixture.
+
+### Nested variant pattern continuation, 2026-09-07
+
+`surface/lower.ml` extracts the existing switch generation into
+`lower_dispatch` and reuses it for nested injection patterns.  Failed
+tests pass their current frame to the enclosing fallback.  The fallback
+keeps its original lexical metadata and locates its whole variant by
+frame depth.  `lib/ir.ml` merges the two identical size folds into a
+polymorphic pair fold, with no new IR arm, instruction or allocation.
+Both changes are new Brisk work.  The core remains within its unchanged
+2000-line bound; all logic remains in the counted source files.
+
+The existing nested injection refusal moves to `test/vm` and exercises
+all three paths with golden `377`.  A new open nested variant refusal
+replaces it, keeping the refusal floor at thirteen.  Both top-level and
+nested open-row matches now reach `Row.is_open` in `lower_dispatch`.
+The record-pattern refusal reaches `PRec` in `lower_chain`.
+
+Eleven new VM pairs have exact hand-derived stdout with no final newline.
+The fixture author derived ten goldens from the source expressions before
+the first run.  The author then revised `nested-pattern-literal-kinds` for
+exhaustiveness and strengthened `nested-pattern-tail`, and derived those
+two goldens again by hand from the revised source.
+The fixture author's baseline run confirms all eleven parse and check,
+then fail lowering at `6d0a9bd`.  The review round of 2026-09-07 adds a
+twelfth pair, `nested-pattern-inner-lambda`, with a hand-derived golden.
+`dev/gates.sh` requires every pair and
+the promoted case by name, raises the executable floor to 162, and
+adds separate 64-slot bounds for the two new deep fixtures.
+
+| Files in `test/vm`, each `.bk` and `.out` | Kind | Purpose and golden |
+| --- | --- | --- |
+| `variant-match-nested-pattern` | ADAPTED | Promoted refusal, inner success and inner/outer fallthrough. `377`. |
+| `nested-pattern-depth-three` | NEW | Three injection levels with fallbacks binding values at distinct depths. `1001003201430254036`. |
+| `nested-pattern-ordered` | NEW | Two literal tests before a binder for one inner tag. `10020010032004405`. |
+| `nested-pattern-whole-fallback` | NEW | Failed inner literal and tag retain the complete outer variant. `1001728109`. |
+| `nested-pattern-occurrences` | NEW | Heterogeneous repeated labels with an intervening distinct tag. `970108205`. |
+| `nested-pattern-record-payload` | NEW | Bound record payloads retain field order. `17283104`. |
+| `nested-pattern-result-layout` | NEW | Nested arms return records in different orders. `132435`. |
+| `nested-pattern-capture-stack` | NEW | Captures and shadowed names below pending argument pushes. `1133115`. |
+| `nested-pattern-effects` | NEW | One scrutinee marker before each result. `01001172283109`. |
+| `nested-pattern-tail` | NEW | 100000 calls through nested literal/binder arms and outer whole-value fallback. `7118109`. |
+| `nested-pattern-tail-reader` | NEW | 100000 calls through nested arms while forwarding open-record offsets. `1224116`. |
+| `nested-pattern-literal-kinds` | NEW | Nested boolean, integer, string and unit tests. `12181002003037`. |
+| `nested-pattern-inner-lambda` | NEW | A lambda arm body at nested depth takes the enclosing result target, so an open record parameter keeps the caller's closed layout. The nested fallback body is a closure over a let-bound name and the whole variant. `1830141`. |
+
+The diagnostic of `test/lower-neg/variant-match-nested-open-tail.err` is
+the same exact M1 line as the other refusals.

@@ -3,7 +3,8 @@
 Stage D remains in progress.  The reader continuation starts at `674f89c`,
 the stack-slot repair at `3259c4d`, layout reconciliation at `e3b42be`,
 tail-call preservation at `42dd749`, recursive group layout settlement
-at `2b4a6e2`, and ordered variant matches at `dca2985`.
+at `2b4a6e2`, ordered variant matches at `dca2985`, and nested variant
+patterns at `6d0a9bd`.
 The known closed-record and contextual-variant reproductions now pass.
 The Stage E driver and speed gates remain unimplemented.
 
@@ -114,7 +115,7 @@ Thirteen fixtures parse and check successfully before answering the exact
 - Returning an open record inside a closed record payload.
 - Accepting an open variant parameter whose unknown tail can flow through.
 - Matching an open variant scrutinee with a catch-all arm.
-- Destructuring a nested injection inside a variant payload pattern.
+- Destructuring a nested injection whose variant row still has an open tail.
 - Destructuring a record inside a variant payload pattern.
 
 Unknown record results can carry a
@@ -156,8 +157,30 @@ matches therefore multiply the emitted code and the lowering time.  A
 twelve-deep ladder over a four-tag row, with three tags that reach the
 fallback, takes several seconds to lower and to run.  The same ladder at
 depth eight takes a fraction of a second.  The answers stay correct in
-every measured case.  One shared copy of the fallback body needs an IR
+every measured case.  That ladder holds one pattern level.
+A nested payload pattern copies the fallback body
+once for each leaf of the nested dispatch, so a nested ladder grows
+faster than this one.  One shared copy of the fallback body needs an IR
 join.  That join belongs to M1.
+
+Nested closed injection patterns now share the same dispatch recursively.
+Each failed inner test resumes the next eligible source arm, including
+an enclosing whole-value fallback.  The fallback retains its lexical
+environment and finds the saved variant below all intervening payloads.
+This preserves captures, shadowing, reader offsets and temporary slots.
+Thirteen VM pairs cover depth three, literal alternatives, duplicate
+tags, record payloads, result layouts, effects, a closure arm body at
+nested depth and both nested and enclosing fallback values.  They include
+the promoted nested-pattern refusal.
+Two pairs make 100000 calls and have individual 64-slot bounds, including
+recursion through a failed inner tag into an outer fallback and a reader
+of an open record parameter.  A replacement refusal pins an open nested
+variant row.  Record destructuring remains unimplemented.
+The fallback body keeps the lexical metadata of its own dispatch level
+and takes only the frame of the failure point.  No M0 program can observe
+the difference today, because only the frame changes along a fallback
+path.  A mutant that passes the complete context of the failure point
+therefore survives the battery.
 
 The HOUSE wildcard and partial-operation rule now scans OCaml sources,
 matching its implementation-language scope.  Brisk wildcard fixtures are
@@ -168,16 +191,16 @@ valid language programs.  An injected OCaml wildcard still fails HOUSE.
 Design explicit layout transport for open record results, open variant
 parameters and general higher-order reader values.  General reader
 transport through records and returned conditional values remains
-outside the supported signature paths.  General record destructuring and
-nested variant payload patterns retain their existing lowering refusals.
+outside the supported signature paths.  General record destructuring
+retains its existing lowering refusals.
 
-The gate requires 149 executable programs, thirteen exact lowering refusals,
+The gate requires 162 executable programs, thirteen exact lowering refusals,
 all 22 instructions emitted and executed, and at most 64 slots in the
-100,000-call tail recursion fixture and each of twenty-five named deep
+100,000-call tail recursion fixture and each of twenty-seven named deep
 layout and match fixtures.  The checker requires 19 positive fixtures and
-36 negative twins.  The counted core is 1998/2000 lines and the machine
-is 795/800.  Variant payload tests reuse `lower_chain`; recursive free-name
-collection is inlined at its only caller.
+36 negative twins.  The counted core is 2000/2000 lines and the machine
+is 795/800.  Variant payload tests reuse `lower_chain` and `lower_dispatch`;
+the IR size counter shares the same fold for function and switch bodies.
 No logic moved outside the counted files and no cap or path changed.
 
 `Value.nth` retains its guarded constant-time array read.  Effect frames

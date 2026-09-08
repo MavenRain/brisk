@@ -1,0 +1,8 @@
+let make n = let shown = print_int n in if n == 0 then < box (< hit 0 >) > else if n == 1 then < box (< hit 7 >) > else if n == 2 then < box (< miss 8 >) > else < other 9 >
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n + 10 | < miss n > -> n + 20
+let unpack v = match (v : < box : < hit : int, miss : int >, other : int >) with | < box v > -> inner v | < other n > -> n + 100
+let read n = match (make n : < box : < hit : int, miss : int >, other : int >) with | < box < hit 0 > > -> 100 | < box < hit payload > > -> payload + 10 | whole -> unpack whole
+let a = print_int (read 0)
+let b = print_int (read 1)
+let c = print_int (read 2)
+let main = print_int (read 3)

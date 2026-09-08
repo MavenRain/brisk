@@ -1,0 +1,9 @@
+let inner v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n + 10
+let middle v = match (v : < layer : < hit : int, miss : int >, other : int >) with | < layer v > -> inner v | < other n > -> n + 20
+let outer v = match (v : < box : < layer : < hit : int, miss : int >, other : int >, skip : int >) with | < box v > -> middle v | < skip n > -> n + 30
+let read v = match (v : < box : < layer : < hit : int, miss : int >, other : int >, skip : int >) with | < box < layer < hit 0 > > > -> 100 | < box < layer < hit n > > > -> n + 1000 | < box < layer rest > > -> inner rest + 2000 | < box rest > -> middle rest + 3000 | whole -> outer whole + 4000
+let a = print_int (read (< box (< layer (< hit 0 >) >) >))
+let b = print_int (read (< box (< layer (< hit 3 >) >) >))
+let c = print_int (read (< box (< layer (< miss 4 >) >) >))
+let d = print_int (read (< box (< other 5 >) >))
+let main = print_int (read (< skip 6 >))

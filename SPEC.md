@@ -597,7 +597,8 @@ A variant block holds a tag and payload array.  The tag is the absolute
 position of the label occurrence in its closed variant row, including
 other labels before it.  A closed variant match uses one jump-table entry
 per physical tag.  Each entry tests that occurrence's payload patterns in
-source order.  Literal, name and wildcard payloads are supported.  A
+source order.  Literal, name, wildcard and nested closed variant payload
+patterns are supported.  A
 whole-variant name or wildcard supplies the fallback and takes priority
 over every later arm.  A named fallback binds the complete original
 variant, including its tag and payload layout, rather than a variant row
@@ -607,8 +608,18 @@ Result layouts and tail position pass into payload and fallback bodies.
 The lowering copies the fallback body into every case of the switch,
 once for each tag of the row, so nested fallback matches multiply the
 emitted code.  One shared copy needs an IR join and arrives at M1.
-Open variant scrutinees and nested injection or record payload patterns
-retain `Not_yet M1` refusals.
+Nested injections reuse this dispatch at each payload depth.  A failed
+inner test resumes the remaining enclosing arms.  Each whole-value
+fallback retains its original lexical scope and reads its saved variant
+below any intervening payload slots.  It can therefore bind an inner or
+outer variant without confusing the two.  Result layouts and tail
+position pass through nested dispatch as well.  An enclosing reader keeps
+its offsets inside a nested arm body.  A nested payload pattern copies the
+fallback body once for each leaf of the nested dispatch.  Pattern depth
+therefore multiplies the emitted code together with the row width.
+Open variant scrutinees, including an open nested row that an injection
+pattern inspects, record payload patterns and a field read through a
+variant payload binder of an open record type retain `Not_yet M1` refusals.
 Literal matches lower to a chain of conditionals, one test per arm, and
 the test follows the kind of the literal.  An integer arm compares with
 `EqInt`.  A string arm compares `CmpStr` against zero.  A `true` arm
@@ -667,7 +678,7 @@ The VM is a tail-recursive OCaml walk over the instruction array with
 one accumulator and an explicit value stack.  Tail position passes into
 lambda bodies, conditional arms, match arms and let bodies.  A call in
 tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
-recursion fixture and twenty-five named layout and match regressions make at least
+recursion fixture and twenty-seven named layout and match regressions make at least
 100,000 calls.  SUITE-VM requires each fixture and its golden to exist and
 each maximum stack use to stay at or below 64 slots.
 
@@ -710,7 +721,7 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-149 programs, no failures and consistent counts.  It also requires
+162 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
 The same gate runs at least thirteen `test/lower-neg` programs through
 `test/refusals.exe`, and the tree ships thirteen.  Each must parse and type

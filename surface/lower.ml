@@ -61,9 +61,8 @@ let look (c : ctx) (x : Ident.t) : Ir.t option =
 
 let rec pat_names (p : Ast.pat) : Ident.t list =
   match p with
-  | Ast.PLit _ -> []
+  | Ast.PLit _ | Ast.PWild -> []
   | Ast.PVar x -> [ x ]
-  | Ast.PWild -> []
   | Ast.PInj (_, _, q) -> pat_names q
   | Ast.PRec (fs, rest) ->
       List.concat_map (fun ((_, _, q) : Label.t * Label.occ * Ast.pat) -> pat_names q) fs
@@ -668,23 +667,27 @@ and lower_match ?(inner = false) ?target (c : ctx) (s : Ast.expr) (arms : Ast.ar
   let* s1 = lower_expr c s in
   let* s1 = convert t t1 s1 in
   let c = { c with st } in
-  Option.fold ~none:(fun () -> Result.map (fun (ch : Ir.t) -> Ir.ILet (s1, ch))
-    (lower_chain ~inner c t1 (record_of c s) target arms))
-    ~some:(fun (row : Types.row) () ->
-      let* () = if Row.is_open row then refuse "M1" else Ok () in
-      let fs = Row.fields row in
-      let saved = push c (SVal hidden) in
-      let* cases = map_result (fun (tag, _) ->
-        let* body = lower_arm ~inner saved t1 fs target tag arms [] in
-        Ok (tag, body)) (List.mapi (fun i f -> i, f) fs) in
-      Ok (Ir.ILet (s1, Ir.ISwitch (Ir.IVar 0, cases))))
-    (variant_row t1) ()
+  let* body = Option.fold
+    ~none:(fun () -> lower_chain ~inner c t1 (record_of c s) target arms)
+    ~some:(fun row () -> lower_dispatch ~inner c t1 row target arms)
+    (variant_row t1) () in
+  Ok (Ir.ILet (s1, body))
 
-and lower_chain ?(inner = false) ?(fallback = fun () -> refuse "M1")
+and lower_dispatch ~inner ?(fallback = fun (_ : ctx) -> refuse "M1")
+    (c : ctx) (whole : Types.ty) (row : Types.row) (target : Types.ty)
+    (arms : Ast.arm list) : (Ir.t, Error.t) result =
+  let* () = if Row.is_open row then refuse "M1" else Ok () in
+  let fs = Row.fields row and saved = push c (SVal hidden) in
+  let* cases = map_result (fun (tag, _) ->
+    let* body = lower_arm ~inner fallback saved whole fs target tag arms [] in
+    Ok (tag, body)) (List.mapi (fun i f -> i, f) fs) in
+  Ok (Ir.ISwitch (Ir.IVar 0, cases))
+
+and lower_chain ?(inner = false) ?(fallback = fun (_ : ctx) -> refuse "M1")
     (c : ctx) (t : Types.ty) (origin : (Label.t * Ident.t) list)
     (target : Types.ty) (arms : Ast.arm list) : (Ir.t, Error.t) result =
   match arms with
-  | [] -> fallback ()
+  | [] -> fallback (push c (SVal hidden))
   | (Ast.PLit l, b) :: more ->
       let* b1 = lower_as ~inner (push c (SVal hidden)) b target in
       Option.fold ~none:(Ok b1)
@@ -695,25 +698,30 @@ and lower_chain ?(inner = false) ?(fallback = fun () -> refuse "M1")
   | (Ast.PVar x, b) :: _ ->
       let c1 = poly_add { (push c (SVal x)) with env = Env.add x (Types.mono t) c.env } x [] in
       lower_as ~inner { c1 with records = (x, origin) :: c1.records } b target
-  | (Ast.PInj (_, _, _), _) :: _ | (Ast.PRec (_, _), _) :: _ -> refuse "M1"
+  | (Ast.PInj (_, _, _), _) :: _ ->
+      let* row = need (variant_row t) "the lowering wants a variant type here" in
+      lower_dispatch ~inner ~fallback c t row target arms
+  | (Ast.PRec (_, _), _) :: _ -> refuse "M1"
 
-(* A case sees its payload above the saved whole variant.  Source order
-   decides which payload test or whole-value fallback wins. *)
-and lower_arm ?(inner = false) (c : ctx) (whole : Types.ty)
+(* A case sees its payload above the saved whole variant.  A failed nested
+   test supplies its full frame; fallback restores the original lexical
+   metadata and locates the whole value below the intervening payloads. *)
+and lower_arm ~inner (fallback : ctx -> (Ir.t, Error.t) result) (c : ctx) (whole : Types.ty)
     (fs : (Label.t * Types.ty) list) (target : Types.ty) (tag : int)
     (arms : Ast.arm list) (selected : Ast.arm list) : (Ir.t, Error.t) result =
   let finish fallback =
     lower_chain ~inner ~fallback c (field_at fs tag) [] target (List.rev selected) in
   match arms with
-  | [] -> finish (fun () -> refuse "M1")
+  | [] -> finish fallback
   | (Ast.PInj (l, occ, q), b) :: more ->
       let* here = occ_at fs l (Label.occ_to_int occ) in
-      lower_arm ~inner c whole fs target tag more
+      lower_arm ~inner fallback c whole fs target tag more
         (if Int.equal here tag then (q, b) :: selected else selected)
   | (((Ast.PVar _ | Ast.PWild), _) as arm) :: _ ->
-      finish (fun () ->
-        let* body = lower_chain ~inner (push c (SVal hidden)) whole [] target [arm] in
-        Ok (Ir.ILet (Ir.IVar 1, body)))
+      finish (fun current ->
+        let depth = List.length current.frame - List.length c.frame in
+        let* body = lower_chain ~inner { c with frame = current.frame } whole [] target [arm] in
+        Ok (Ir.ILet (Ir.IVar depth, body)))
   | (Ast.PLit _, _) :: _ | (Ast.PRec (_, _), _) :: _ -> refuse "M1"
 
 and offset_of (c : ctx) (r : Ast.expr) (l : Label.t) (k : int) :

@@ -1512,3 +1512,99 @@ The transcript of the continuation section above holds the numbers of
 the source copy run, before this round added the fifteenth VM pair.
 The denominator is this run's measurement and makes no Stage E speed
 claim.
+
+## Nested variant pattern continuation, 2026-09-07
+
+This continuation starts at `6d0a9bd`.  Nested closed injection patterns
+now reuse ordered variant dispatch, including failed literal tests and
+whole-value fallbacks at several depths.  The checker, IR constructors
+and VM instruction set remain unchanged.  Stage D is still in progress.
+
+| Id | Decision | Reason |
+| --- | --- | --- |
+| D-D-C35 | Extract `lower_dispatch` and call it from nested `PInj` patterns. | Top-level and nested tags need the same occurrence lookup, ordered arms and closed-row guard. |
+| D-D-C36 | Pass the complete current frame to deferred fallbacks and retain their original lexical metadata. | Failed inner tests leave extra payload slots above the saved whole value. Captures and names must still refer to the original scope. |
+| D-D-C37 | Forward the result target and `inner` through recursive dispatch. | Layout conversion, curried reader offsets and tail position must survive nested tests. |
+| D-D-C38 | Promote the nested-pattern refusal, add eleven VM pairs and replace the refusal with an open nested row. | Supported programs need executable evidence, while unknown tags still require a lowering refusal. Two new deep fixtures retain individual 64-slot bounds. |
+| D-D-C39 | Share the pair fold in `Ir.size` and combine identical leaf cases. | The counted core stays at 2000/2000 lines without moving logic outside the trusted files. |
+
+The baseline gate passes 149 executable programs and thirteen refusals.
+The twelve new executable cases pass focused validation.  The fixture
+author derived ten goldens from the source expressions before the first
+run.  The author then revised `nested-pattern-literal-kinds` for
+exhaustiveness and strengthened `nested-pattern-tail`, and derived those
+two goldens again by hand from the revised source.  The old executable
+refuses all eleven new fixtures after successful parsing and checking.  The promoted case was
+already an exact checked lowering refusal in the baseline tree.
+
+Evidence is retained under
+`/Users/oobi/Documents/gpt8/brisk-destructure-evidence`.
+
+The complete gate in `captures/run-NCCijj` returned exit zero:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=46
+PASS SUITE-CHECK positives=19 twins=36
+REFUSALS files=13 ok=13 fail=0
+VM files=180 main=161 skipped=19 ok=161 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=161 goldens=161
+TRUSTED-LINES core=2000/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=257.703
+GATES-OK
+```
+
+| Leg | Tier | Elapsed ms | Exit |
+| --- | --- | ---: | ---: |
+| BUILD | MED | 802.627 | 0 |
+| HOUSE | FAST | 390.978 | 0 |
+| PARSE | MED | 451.701 | 0 |
+| SUITE-CHECK | SUITE | 392.208 | 0 |
+| SUITE-VM | SUITE | 35430.536 | 0 |
+| TRUSTED-LINES | FAST | 72.744 | 0 |
+| DENOMINATORS | SLOW | 13606.687 | 0 |
+
+`nested-pattern-tail` peaks at 15 slots and
+`nested-pattern-tail-reader` at 14.  The denominator is this run's
+measurement and makes no Stage E speed claim.  The generated review
+battery ran 40 programs with 190 matches at depths two through five and
+1400 calls.  Its capture `run-Lz2A8d` returned exit zero with 40 of 40
+ok.  Its generator and capture are in the `review` subdirectory of the
+evidence directory.
+
+## Review round, 2026-09-07
+
+A review of the nested variant pattern continuation accepted seven
+findings.  This section lists each accepted identifier and its change.
+
+F9: the review adds the VM pair `nested-pattern-inner-lambda`, which
+fails when the nested dispatch drops the `inner` flag, and raises the
+executable floor to 162.
+
+F8: `dev/STAGE-D-STATUS.md` and `dev/MUTATION-LOG.md` now disclose that a
+mutant which passes the complete context of the failure point to the
+whole-value fallback survives the battery.
+
+F10: `SPEC.md` and `dev/PROVENANCE.md` now hold the program count 162 and
+the count of twenty-seven named deep fixtures, together with `README.md`
+and `dev/STAGE-D-STATUS.md`.
+
+F15: the ordering claim about the goldens now states the ten goldens that
+the evidence timestamps support, and it names the two fixtures that the
+author revised afterwards.
+
+F14: the review sentences now state the checkable facts of the generated
+battery, which are 40 programs, 190 matches, 1400 calls and the capture
+`run-Lz2A8d`.
+
+F12: the refusal table of `dev/PROVENANCE.md` now holds a MOVED row for
+the promoted pair, a row for `variant-match-nested-open-tail` and the
+`PRec` arm as the guard of the record refusal.
+
+F4: `SPEC.md` and `dev/STAGE-D-STATUS.md` now bound the fallback copies by
+the leaf count of the nested dispatch, drop the reader metadata claim and
+name the refused field read through a variant payload binder of an open
+record type.
