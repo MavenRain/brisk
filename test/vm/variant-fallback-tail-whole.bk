@@ -1,0 +1,5 @@
+(* The whole fallback variant survives 100000 tail calls and payload reordering. *)
+let read v = match (v : < go : { a : int, b : int }, stop : int >) with | < go r > -> r.b | < stop n > -> n
+let rec walk count v = match (v : < stop : int, go : { b : int, a : int } >) with | < stop n > -> n + count | whole -> if count == 0 then read whole else walk (count - 1) whole
+let a = print_int (walk 100000 (< go { a = 1, b = 7 } >))
+let main = print_int (walk 3 (< stop 8 >))

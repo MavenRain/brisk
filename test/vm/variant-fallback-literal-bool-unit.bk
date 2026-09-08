@@ -1,0 +1,6 @@
+let unpack v = match (v : < flag : bool, pulse : unit, other : int >) with | < flag yes > -> if yes then 11 else 10 | < pulse _ > -> 20 | < other n > -> n + 30
+let read v = match (v : < flag : bool, pulse : unit, other : int >) with | < flag true > -> 1 | < pulse () > -> 2 | whole -> unpack whole
+let a = print_int (read (< flag true >))
+let b = print_int (read (< flag false >))
+let c = print_int (read (< pulse () >))
+let main = print_int (read (< other 4 >))

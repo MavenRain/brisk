@@ -1,0 +1,5 @@
+let unpack v = match (v : < z : int, a : int, a : bool >) with | < z n > -> n + 200 | < a n > -> n + 100 | < a ^ 1 yes > -> if yes then 1 else 0
+let read v = match (v : < a : int, z : int, a : bool >) with | < a ^ 1 _ > -> 9 | < a n > -> n | whole -> unpack whole
+let a = print_int (read (< a 7 >))
+let b = print_int (read (< a ^ 1 true >))
+let main = print_int (read (< z 8 >))

@@ -1,0 +1,6 @@
+let unpack v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n + 10
+let make base v = match (v : < hit : int, miss : int >) with | < hit n > -> fun extra -> base + n + extra | whole -> fun extra -> base + unpack whole + extra
+let explicit = make 3 (< hit 2 >)
+let fallback = make 4 (< miss 8 >)
+let a = print_int (explicit 5)
+let main = print_int (fallback 6)

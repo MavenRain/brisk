@@ -1373,3 +1373,142 @@ holds a reader;  `main_floor` becomes 134.
 F5: `dev/STAGE-D-STATUS.md` records that
 `test/vm/layout-generic-identity-variant-annotation.bk` does not fail the
 retag mutant, because no annotated identity program emits a retag.
+
+## Ordered variant match continuation, 2026-09-07
+
+This continuation starts at `dca2985`.  Checked closed-variant programs
+with whole-value fallback arms or literal payload alternatives previously
+answered `Not_yet M1`.  The lowerer now emits one case per physical tag,
+retains each tag's source arm order, and binds the original variant in a
+named fallback.  Stage D remains in progress; the Stage E driver and
+speed gates remain unimplemented.
+
+| Decision | Change | Reason |
+| --- | --- | --- |
+| D-D-C30 | Save the converted scrutinee once before switching; enumerate closed-row occurrences into cases. | Each fallback must retain the original tag and payload layout, including duplicate occurrences. |
+| D-D-C31 | Collect matching payload patterns until the first whole-value catch-all and pass them to `lower_chain` with a deferred fallback. | Literal tests and source priority share one implementation; unreachable later arms do not replace the first match. |
+| D-D-C32 | Forward `inner` and the result target through explicit and fallback bodies. | Reader conventions and tail calls must survive the extra scrutinee and payload slots. |
+| D-D-C33 | Require all fifteen new VM pairs, all three new refusal pairs and separate 64-slot bounds on the three deep cases. | Fixture removal cannot be hidden by unrelated corpus additions. |
+| D-D-C34 | Scope HOUSE's wildcard and partial-operation scan to OCaml files in its existing directories. | Brisk wildcards are supported surface syntax; an OCaml wildcard control must still fail. |
+
+No checker, IR, VM, instruction count or trusted path changes.  The
+recursive free-name helper is inlined at its only caller, and literal
+branch construction drops unnecessary thunks.  The counted core is
+1998/2000 lines and the machine remains 795/800.
+
+The baseline `lower_arm` at `dca2985` answers a tag for every arm and
+refuses every top-level name or wildcard pattern.  The fifteen new VM
+pairs therefore each type check and fail baseline lowering.
+Their hand-derived goldens pass the new implementation.  The three new
+refusal pairs first parse and check, then retain the exact M1 diagnostic
+for an open variant scrutinee and nested injection or record patterns.
+
+The full gate in the source copy returned exit zero:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=46
+CHECK files=55 pos=19 neg=36 inst=40 over=15 ok=55 fail=0
+PASS SUITE-CHECK positives=19 twins=36
+REFUSALS files=13 ok=13 fail=0
+VM files=167 main=148 skipped=19 ok=148 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=148 goldens=148
+TRUSTED-LINES core=1998/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+PASS DENOMINATORS raw_ms_per_kloc=232.230
+GATES-OK
+```
+
+| Leg | Tier | Elapsed ms | Exit |
+| --- | --- | ---: | ---: |
+| BUILD | MED | 416.471 | 0 |
+| HOUSE | FAST | 283.275 | 0 |
+| PARSE | MED | 123.963 | 0 |
+| SUITE-CHECK | SUITE | 266.981 | 0 |
+| SUITE-VM | SUITE | 48487.429 | 0 |
+| TRUSTED-LINES | FAST | 53.815 | 0 |
+| DENOMINATORS | SLOW | 10845.573 | 0 |
+
+`variant-fallback-tail-explicit` peaks at 14 slots and
+`variant-fallback-tail-whole` at 15 after 100000 calls each.  Existing
+deep fixtures retain their individual 64-slot checks.  The denominator
+is this run's measurement and makes no Stage E speed claim.
+
+The gate capture is
+`/Users/oobi/Documents/gpt8/brisk-patterns-evidence/captures/run-DkJqAr`.
+HOUSE controls are recorded in that evidence directory's
+`house-validation.md`.  Mutation evidence is recorded in `MUTATION-LOG.md`.
+
+## Review round, 2026-09-07
+
+The review of the ordered variant match continuation accepted six
+findings.  This round applies them.  No OCaml source changed, so the
+counted core stays at 1998 of 2000 lines and the machine at 795 of 800.
+
+F4: `test/vm/variant-fallback-literal-int.bk` gains a third payload arm
+for the same tag, a name arm after the two literal arms.  Its golden
+becomes `100200100324`.  The fixture now kills a mutant that drops
+`List.rev` from `selected` in `lower_arm`, so it witnesses source arm
+order inside one physical tag.
+
+F5: `dev/MUTATION-LOG.md` no longer calls the probe review independent.
+It names the failing first run `run-Ta21hq`, the corrected run
+`run-sXdzUJ` and the fact that the probe goldens were corrected between
+them.
+
+F3: `test/vm/variant-fallback-tail-reader.bk` is new.  It reads two
+labels of an open record parameter through dynamic field offsets and
+makes 100000 tail calls through the new switch, so a fixture now
+witnesses the reader clause of ruling D-D-C32.  Its golden is `12` and
+it peaks at 13 slots.  `dev/gates.sh` raises `main_floor` to 149 and
+names the fixture in `tail_files`.
+
+F8: the three refusal rows of `dev/PROVENANCE.md` name the guard each
+program reaches.  A sentence records that all thirteen `test/lower-neg`
+goldens hold the same bytes, so the refusal leg pins the count and the
+diagnostic and not the guard.
+
+F7: the three sentences that claimed a baseline lowering failure now
+name the reason.  The baseline `lower_arm` answers a tag for every arm
+and refuses every top-level name or wildcard pattern.
+
+F1: `dev/STAGE-D-STATUS.md` and `SPEC.md` record that the lowering
+copies the whole-value fallback body once for each tag of the row, that
+nested fallback matches multiply the emitted code and the lowering time,
+and that one shared copy needs an IR join at M1.
+
+The full gate returned exit zero after this round:
+
+```text
+PASS BUILD
+PASS HOUSE
+PASS PARSE fixtures=46
+CHECK files=55 pos=19 neg=36 inst=40 over=15 ok=55 fail=0
+PASS SUITE-CHECK positives=19 twins=36
+REFUSALS files=13 ok=13 fail=0
+VM files=168 main=149 skipped=19 ok=149 fail=0
+CENSUS emitted=22/22 executed=22/22
+PASS SUITE-VM programs=149 goldens=149
+TRUSTED-LINES core=1998/2000 vm=795/800 OK
+PASS TRUSTED-LINES
+DENOM raw_ms_per_kloc=199.174
+PASS DENOMINATORS raw_ms_per_kloc=199.174
+GATES-OK
+```
+
+| Leg | Tier | Elapsed ms | Exit |
+| --- | --- | ---: | ---: |
+| BUILD | MED | 133.987 | 0 |
+| HOUSE | FAST | 118.078 | 0 |
+| PARSE | MED | 93.644 | 0 |
+| SUITE-CHECK | SUITE | 117.529 | 0 |
+| SUITE-VM | SUITE | 22972.602 | 0 |
+| TRUSTED-LINES | FAST | 52.061 | 0 |
+| DENOMINATORS | SLOW | 7503.597 | 0 |
+
+The transcript of the continuation section above holds the numbers of
+the source copy run, before this round added the fifteenth VM pair.
+The denominator is this run's measurement and makes no Stage E speed
+claim.

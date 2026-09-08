@@ -595,7 +595,20 @@ unknown tail, which the current calling convention does not carry.
 
 A variant block holds a tag and payload array.  The tag is the absolute
 position of the label occurrence in its closed variant row, including
-other labels before it.  A closed variant match uses a jump table.
+other labels before it.  A closed variant match uses one jump-table entry
+per physical tag.  Each entry tests that occurrence's payload patterns in
+source order.  Literal, name and wildcard payloads are supported.  A
+whole-variant name or wildcard supplies the fallback and takes priority
+over every later arm.  A named fallback binds the complete original
+variant, including its tag and payload layout, rather than a variant row
+with earlier tags removed.  The scrutinee is evaluated and saved once;
+the switch exposes its payload while the saved whole value stays in scope.
+Result layouts and tail position pass into payload and fallback bodies.
+The lowering copies the fallback body into every case of the switch,
+once for each tag of the row, so nested fallback matches multiply the
+emitted code.  One shared copy needs an IR join and arrives at M1.
+Open variant scrutinees and nested injection or record payload patterns
+retain `Not_yet M1` refusals.
 Literal matches lower to a chain of conditionals, one test per arm, and
 the test follows the kind of the literal.  An integer arm compares with
 `EqInt`.  A string arm compares `CmpStr` against zero.  A `true` arm
@@ -654,7 +667,7 @@ The VM is a tail-recursive OCaml walk over the instruction array with
 one accumulator and an explicit value stack.  Tail position passes into
 lambda bodies, conditional arms, match arms and let bodies.  A call in
 tail position emits `AppTerm`;  other calls emit `Apply`.  The tail
-recursion fixture and twenty-two named result-layout regressions make at least
+recursion fixture and twenty-five named layout and match regressions make at least
 100,000 calls.  SUITE-VM requires each fixture and its golden to exist and
 each maximum stack use to stay at or below 64 slots.
 
@@ -697,10 +710,10 @@ without writing the program's output.  The VM suite compares those bytes
 with the hand-written `.out` sibling of each `.bk` program.  Files that
 declare no `main` count as skipped.  The summary is
 `VM files=N main=R skipped=S ok=K fail=M`;  the gate requires at least
-134 programs, no failures and consistent counts.  It also requires
+149 programs, no failures and consistent counts.  It also requires
 `CENSUS emitted=22/22 executed=22/22`, with no `CENSUS-SKIP` diagnostic.
-The same gate runs at least ten `test/lower-neg` programs through
-`test/refusals.exe`, and the tree ships ten.  Each must parse and type
+The same gate runs at least thirteen `test/lower-neg` programs through
+`test/refusals.exe`, and the tree ships thirteen.  Each must parse and type
 check, then fail lowering
 with exactly its hand-written `.err` diagnostic.  Successful lowering,
 an earlier rejection, a missing golden or an empty corpus fails the gate.

@@ -1,0 +1,2 @@
+let read v = match (v : < box : { x : int }, other : int >) with | < box { x = n } > -> n | remaining -> 7
+let main = print_int (read (< box { x = 3 } >))

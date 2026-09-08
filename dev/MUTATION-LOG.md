@@ -697,3 +697,50 @@ and the metadata passed between ordinary and recursive binding paths.
 Exact control and mutation sources, diffs, hashes, commands, exits and
 logs are under `/Users/oobi/Documents/gpt8/brisk-groups-evidence/mutations`.
 The baseline and full gate logs are in its parent evidence directory.
+
+## Ordered variant match continuation, 2026-09-07
+
+The baseline `lower_arm` at `dca2985` answers a tag for every arm and
+refuses every top-level name or wildcard pattern.  The fifteen new
+`variant-fallback-*` programs therefore type check and fail lowering
+there.  They pass with the new lowerer.  The complete gate
+passes 149 VM programs, thirteen exact refusals and the 22/22 emitted and
+executed instruction census.  The three new 100000-call regressions peak
+at 14, 15 and 13 slots, within their individual 64-slot bounds.
+
+All four mutations below build successfully in an isolated source copy.
+The unmodified control passes the fourteen VM fixtures of the slice and
+all three new refusal fixtures before mutation and after restoration.
+The review round added the fifteenth VM fixture after this control run.
+
+| Mutation | Witness | Observed result |
+| --- | --- | --- |
+| VM-M1: bind a whole fallback from `IVar 0` instead of `IVar 1` | Twelve `variant-fallback-*` fixtures | Exit one, the machine wants a variant block at a switch. Plain wildcard-only cases correctly survive. |
+| VM-M2: select payload arms using `Int.equal here 0` instead of the current tag | Thirteen `variant-fallback-*` fixtures | Exit one from wrong output or lowering failure. The leading wildcard case correctly survives. |
+| VM-M3: remove the open-row guard in `lower_match` | `variant-match-open-tail` | Exit one, `lowering accepted a refused program`; the other two refusal controls still pass. |
+| VM-M4: bypass literal tests in `lower_chain` | `variant-fallback-literal-int`, `variant-fallback-literal-string`, `variant-fallback-literal-bool-unit` | Exit one, all three stdout goldens differ; the remaining eleven VM fixtures pass. |
+
+Exact source diffs, hashes, commands and exits are in
+`/Users/oobi/Documents/gpt8/brisk-patterns-evidence/mutations/REPORT.md`.
+The capture directories for VM-M1 through VM-M4 are respectively
+`run-YLH0Zv`, `run-0oh0Eb`, `run-9LCoDJ` and `run-KE1G9j` under its
+`captures/` directory.  Restored controls pass in `run-GSyX2q` and
+`run-0kd9Cm` after a successful rebuild in `run-3Cap4F`.
+
+The HOUSE scope correction has both controls: the valid Brisk wildcard
+program fails the old script and passes the updated one; adding a
+forbidden OCaml wildcard to the same input still fails.  Those inputs
+and captures are preserved in `brisk-patterns-evidence/house-controls/`
+and listed in `brisk-patterns-evidence/house-validation.md`.
+
+A second agent ran six additional VM probes under
+`brisk-patterns-evidence/review`.  Its first run `run-Ta21hq` failed all
+six probes.  The probe sources and goldens were corrected after that
+run, and the corrected run `run-sXdzUJ` passes with
+`VM files=6 main=6 skipped=0 ok=6 fail=0`.  The probes therefore witness
+their goldens and not the implementation.  They cover reader contexts,
+repeated occurrences, unreachable arms, shadowing, captures and a
+100000-call record-result conversion.  The last probe peaks at 18 slots
+in `run-JEWmVD`.  Its focused census lacks full instruction coverage;
+the complete gate supplies the 22/22 result.
+The sources and captures are retained in `brisk-patterns-evidence/review/`.

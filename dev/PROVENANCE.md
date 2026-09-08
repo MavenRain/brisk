@@ -49,7 +49,7 @@ and `surface/lower.ml`, because both modules read the surface AST.
 | `vm/prim.ml` | none | NEW | Applies the primitive operations to runtime values and refuses a zero divisor through `Result`. |
 | `vm/census.ml` | none | NEW | Collects distinct emitted and executed instruction names and the maximum stack size.  It is outside both trusted-lines lists, beside values and primitives. |
 | `test/vm.ml` | none | NEW | Runs the parse, check, lower, assemble and execute pipeline against stdout goldens, skips files without `main`, and provides `--census`. |
-| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 132 programs with their goldens, ten exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and nineteen deep result-layout fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order and nine group-boundary pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
+| `dev/gates.sh` SUITE-VM leg | none | NEW | Requires at least 149 programs with their goldens, thirteen exact lowering refusals after successful parsing and typing, consistent summary counts, and the 22/22 emitted and executed census. It names `tailrec` and twenty-five deep layout and match fixtures, checks that each named source and its golden exist, and holds each at a maximum of 64 stack slots. It also requires the named evaluation-order, group-boundary and variant-fallback pairs. It reads `test/vm`, `test/pos` and `test/lower-neg`, and runs under the SUITE watchdog tier. |
 | `dev/gates.sh` TRUSTED-LINES leg | none | NEW | Runs the existing counter with `--require` under the FAST tier.  The core and VM bounds remain 2000 and 800. |
 | `dev/STAGE-D-STATUS.md` | none | NEW | Records the current Stage D scope, validation and executed reproductions of the remaining lowering failures. |
 
@@ -320,3 +320,53 @@ hand derived exact stdout with no final newline.  SUITE-CHECK now requires
 | `test/vm/group-boundary-captured-outer-typevar.bk` and `.out` | none | NEW | Recursive members capture an outer generic value.  Golden `789`. |
 | `test/vm/group-boundary-open-reader-nested-fixed.bk` and `.out` | none | NEW | An open record reader preserves a nested payload's fixed order.  Golden `789`. |
 | `test/pos/recursive-row-order.bk`, `.fmt`, `.scheme`, `.inst` and `.over` | none | NEW | Source checking retains `int -> { b : int, a : bool }`, accepts reordered instantiation and rejects over-generalization. |
+
+### Ordered variant match continuation, 2026-09-07
+
+`surface/lower.ml` saves the scrutinee and emits one switch case per
+closed variant occurrence.  Each case collects its source payload arms
+until the first whole-value fallback and reuses `lower_chain` for tests.
+Fallback bodies bind the saved variant below the switch payload.  This
+is new Brisk code, with no IR, instruction, checker or VM change.
+The recursive free-name helper is inlined at its only call site.
+
+`dev/house.sh` applies the wildcard and partial-operation rule to OCaml
+files in the same source directories.  Valid Brisk wildcard fixtures
+now pass; an injected OCaml wildcard still fails the rule.  No OCaml
+source path or pattern is exempted.  `dev/gates.sh` raises the program
+floor to 149 and refusal floor to 13, pins all fifteen new VM pairs
+and three refusal pairs by name, and holds all three new deep fixtures
+to the existing 64-slot ceiling.
+
+The baseline `lower_arm` at `dca2985` answers a tag for every arm and
+refuses every top-level name or wildcard pattern.  The fifteen VM
+fixtures therefore type check and fail lowering there.  They pass after
+this change.  Every stdout golden below is hand derived and has no final
+newline.
+
+| Files | Source | Kind | Purpose |
+| --- | --- | --- | --- |
+| `test/vm/variant-fallback-dispatch.bk` and `.out` | none | NEW | Explicit payload names and wildcards, then whole wildcards. Golden `102739`. |
+| `test/vm/variant-fallback-wildcard-first.bk` and `.out` | none | NEW | A leading wildcard wins over later injection arms. Golden `77`. |
+| `test/vm/variant-fallback-variable-first.bk` and `.out` | none | NEW | A leading name forwards the original variant. Golden `218`. |
+| `test/vm/variant-fallback-closure.bk` and `.out` | none | NEW | Closures capture explicit payload and whole fallback values. Golden `1028`. |
+| `test/vm/variant-fallback-occurrences.bk` and `.out` | none | NEW | Two occurrences of one label remain distinct. Golden `79208`. |
+| `test/vm/variant-fallback-payload-order.bk` and `.out` | none | NEW | Fallback forwarding preserves reordered record payloads. Golden `17283`. |
+| `test/vm/variant-fallback-effects.bk` and `.out` | none | NEW | Each effectful scrutinee prints one marker before its result. Golden `113224`. |
+| `test/vm/variant-fallback-stack.bk` and `.out` | none | NEW | Outer bindings remain correct below pending arguments and local lets. Golden `1225710`. |
+| `test/vm/variant-fallback-result.bk` and `.out` | none | NEW | A whole-variant result converts to its consumer layout. Golden `137`. |
+| `test/vm/variant-fallback-tail-whole.bk` and `.out` | none | NEW | The fallback forwards a variant through 100000 calls. Golden `711`. |
+| `test/vm/variant-fallback-tail-explicit.bk` and `.out` | none | NEW | The explicit arm makes 100000 calls beside a whole fallback. Golden `718`. |
+| `test/vm/variant-fallback-tail-reader.bk` and `.out` | none | NEW | An open record parameter reads two labels through dynamic field offsets and makes 100000 calls through the new switch. The recursive call stays in tail position beside a whole fallback. Golden `12`. |
+| `test/vm/variant-fallback-literal-int.bk` and `.out` | none | NEW | Distinct integer payload alternatives share a tag. The fixture pins source arm order inside one tag, because a later name payload arm must not swallow an earlier literal test. Golden `100200100324`. |
+| `test/vm/variant-fallback-literal-string.bk` and `.out` | none | NEW | Distinct string payload alternatives share a tag. Golden `121324`. |
+| `test/vm/variant-fallback-literal-bool-unit.bk` and `.out` | none | NEW | Boolean and unit tests coexist with a whole fallback. Golden `110234`. |
+| `test/lower-neg/variant-match-open-tail.bk` and `.err` | none | NEW | A directly constructed injection still has an unresolved tail. Checked lowering refuses it. The program reaches the `Row.is_open` guard of `lower_match`. |
+| `test/lower-neg/variant-match-nested-pattern.bk` and `.err` | none | NEW | Nested injection payload destructuring remains refused after checking. The program reaches the single `PInj` and `PRec` arm of `lower_chain` through its `PInj` alternative, after `lower_arm` collects the payload. |
+| `test/lower-neg/variant-match-record-pattern.bk` and `.err` | none | NEW | Record payload destructuring remains refused after checking. The program reaches the same arm of `lower_chain` through its `PRec` alternative, after `lower_arm` collects the payload. |
+
+All thirteen `test/lower-neg` goldens hold the same bytes,
+`Not_yet 1:1-1:1 the form arrives at M1`.  The refusal leg therefore
+pins the count of refused programs and the diagnostic.  It does not pin
+which guard a program reaches.  The purpose column above names the
+guard for each new fixture.

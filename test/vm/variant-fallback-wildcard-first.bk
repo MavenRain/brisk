@@ -1,0 +1,3 @@
+let read v = match (v : < hit : int, miss : int >) with | _ -> 7 | < hit n > -> n + 100 | < miss n > -> n + 200
+let a = print_int (read (< hit 2 >))
+let main = print_int (read (< miss 8 >))

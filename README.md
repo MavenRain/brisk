@@ -14,6 +14,8 @@ Result layouts pass into control-flow arms and curried bodies so redundant
 conversions preserve tail calls when caller and callee result layouts agree.
 Recursive groups settle a common order for supported record and variant
 layouts, including annotated members and nested payloads.
+Closed variant matches preserve source arm order across literal payload
+tests and catch-all arms.  A named fallback receives the original variant.
 The assembler preserves lexical bindings and captures across temporary
 argument pushes, including nested lets, matches and recursive groups.
 The driver arrives at Stage E.  The grammar,
@@ -65,12 +67,12 @@ HOUSE holds the house rules of the plan section 11 over lib, surface and
 vm, plus test.  PARSE holds parse, print, parse and print equal on its 46
 fixtures.  SUITE-CHECK requires at least 19 positive fixtures and 36
 negative twins.  SUITE-VM checks the stdout goldens of every program with
-`main` in `test/vm` and `test/pos`, with a floor of 134 programs.  It
-requires at least ten lowering refusals to parse and check successfully
-before matching their exact diagnostic goldens;  the tree ships ten.
+`main` in `test/vm` and `test/pos`, with a floor of 149 programs.  It
+requires at least thirteen lowering refusals to parse and check successfully
+before matching their exact diagnostic goldens;  the tree ships thirteen.
 SUITE-VM also
 requires all 22 instructions to be emitted and executed, and the
-100,000-call tail recursion fixture and twenty-two named result-layout
+100,000-call tail recursion fixture and twenty-five named layout and match
 regressions to use at most 64 stack slots each.
 TRUSTED-LINES requires all counted files to exist and holds the six core
 files at 2,000 lines and the three machine files at 800.  DENOMINATORS

@@ -1,0 +1,5 @@
+let make n = let shown = print_int n in if n == 1 then < hit 3 > else < miss 4 >
+let unpack v = match (v : < hit : int, miss : int >) with | < hit n > -> n | < miss n > -> n
+let read n = match (make n : < hit : int, miss : int >) with | < hit payload > -> payload + 10 | whole -> unpack whole + 20
+let a = print_int (read 1)
+let main = print_int (read 2)

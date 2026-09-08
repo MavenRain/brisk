@@ -1,0 +1,6 @@
+let unpack v = match (v : < tag : int, other : int >) with | < tag n > -> n + 10 | < other n > -> n + 20
+let read v = match (v : < tag : int, other : int >) with | < tag 0 > -> 100 | < tag 2 > -> 200 | < tag n > -> n + 1000 | whole -> unpack whole
+let a = print_int (read (< tag 0 >))
+let b = print_int (read (< tag 2 >))
+let c = print_int (read (< tag 3 >))
+let main = print_int (read (< other 4 >))

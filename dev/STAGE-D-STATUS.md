@@ -2,8 +2,8 @@
 
 Stage D remains in progress.  The reader continuation starts at `674f89c`,
 the stack-slot repair at `3259c4d`, layout reconciliation at `e3b42be`,
-tail-call preservation at `42dd749`, and recursive group layout settlement
-at `2b4a6e2`.
+tail-call preservation at `42dd749`, recursive group layout settlement
+at `2b4a6e2`, and ordered variant matches at `dca2985`.
 The known closed-record and contextual-variant reproductions now pass.
 The Stage E driver and speed gates remain unimplemented.
 
@@ -99,7 +99,7 @@ fifteen `stack-*` regressions retain their semantic outputs.
 
 ## Explicit lowering refusals
 
-Ten fixtures parse and check successfully before answering the exact
+Thirteen fixtures parse and check successfully before answering the exact
 `Not_yet M1` diagnostic:
 
 - Open-row restriction, which requires the full residual layout.
@@ -113,33 +113,71 @@ Ten fixtures parse and check successfully before answering the exact
 - Returning a record extended from an unknown row.
 - Returning an open record inside a closed record payload.
 - Accepting an open variant parameter whose unknown tail can flow through.
+- Matching an open variant scrutinee with a catch-all arm.
+- Destructuring a nested injection inside a variant payload pattern.
+- Destructuring a record inside a variant payload pattern.
 
-The last four are new refusals.  Unknown record results can carry a
+Unknown record results can carry a
 physical order different from their inferred prefix.  An open variant
 parameter can carry an unknown tag outside the compiled switch table.
 The present convention has no complete transport for either case.
 These guards also inspect nested payload types.  They are conservative:
 some programs refused this way could run safely with more layout evidence.
+The match guard also refuses a directly constructed injection with an
+unresolved tail.  A closed variant annotation makes its full layout known.
 
 `test/pos/record-restrict.bk` still contains the declaration from the
 open-restriction refusal.  It type-checks but declares no `main`, so only
 SUITE-CHECK runs it.  This remains a documented lowering limitation.
+
+## Ordered variant matches
+
+Closed variants support explicit injection arms followed by a name or
+wildcard fallback, including a catch-all placed before later injections.
+Several arms may test distinct literals of the same tag's payload.
+Integer, string, boolean and unit tests reuse the literal match path.
+The first matching source arm wins.  A fallback name receives the whole
+original variant, not just the payload or a reduced row.
+
+Fifteen VM pairs cover dispatch, catch-all priority, captured fallback
+values, duplicate label occurrences, record payload layout, result
+conversion, evaluation order, temporary stack slots and all four literal
+kinds.  Three of these pairs make 100000 recursive calls through explicit
+and fallback arms and join the individual 64-slot checks.  One of the
+three reads an open record parameter through dynamic field offsets, so
+it holds the reader convention together with tail position.  The
+integer literal pair holds a name payload arm after two literal payload
+arms of the same tag, so it pins source arm order inside one tag.
+
+The lowering copies the whole-value fallback body into every case of the
+switch, once for each tag of the row.  A fallback body that holds
+another variant match is copied again inside each copy.  Nested fallback
+matches therefore multiply the emitted code and the lowering time.  A
+twelve-deep ladder over a four-tag row, with three tags that reach the
+fallback, takes several seconds to lower and to run.  The same ladder at
+depth eight takes a fraction of a second.  The answers stay correct in
+every measured case.  One shared copy of the fallback body needs an IR
+join.  That join belongs to M1.
+
+The HOUSE wildcard and partial-operation rule now scans OCaml sources,
+matching its implementation-language scope.  Brisk wildcard fixtures are
+valid language programs.  An injected OCaml wildcard still fails HOUSE.
 
 ## Next implementation work
 
 Design explicit layout transport for open record results, open variant
 parameters and general higher-order reader values.  General reader
 transport through records and returned conditional values remains
-outside the supported signature paths.  Destructuring and residual
-variant patterns also retain their existing lowering refusals.
+outside the supported signature paths.  General record destructuring and
+nested variant payload patterns retain their existing lowering refusals.
 
-The gate requires 134 executable programs, ten exact lowering refusals,
+The gate requires 149 executable programs, thirteen exact lowering refusals,
 all 22 instructions emitted and executed, and at most 64 slots in the
-100,000-call tail recursion fixture and each of twenty-two named deep
-result-layout fixtures.  The checker requires 19 positive fixtures and
-36 negative twins.  The counted core is 2000/2000 lines and the machine
-is 795/800.  Declaration lowering reuses `lower_let` instead of duplicating
-its binding setup, keeping this change within the existing bounds.
+100,000-call tail recursion fixture and each of twenty-five named deep
+layout and match fixtures.  The checker requires 19 positive fixtures and
+36 negative twins.  The counted core is 1998/2000 lines and the machine
+is 795/800.  Variant payload tests reuse `lower_chain`; recursive free-name
+collection is inlined at its only caller.
 No logic moved outside the counted files and no cap or path changed.
 
 `Value.nth` retains its guarded constant-time array read.  Effect frames

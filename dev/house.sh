@@ -17,7 +17,7 @@
 # list, so ripgrep never reads a missing path.  At Stage 0 no source
 # directory exists, so legs 1 to 4 search nothing and hold zero hits.
 #
-# Leg 4 reads the OCaml sources alone.  It passes the glob '*.ml' to
+# Legs 2 and 4 read the OCaml sources alone.  They pass the glob '*.ml' to
 # ripgrep, because the rule is about OCaml sources and a brisk program
 # under test/vm is the language under test (D-D-81).  The other legs
 # read every file of the listed directories.
@@ -97,7 +97,12 @@ leg1=$(hits $pat_exn $all_dirs; hits $pat_try $no_bin_dirs)
 report_empty "no-exception" "$leg1"
 
 # Leg 2:  no wildcard arm, no partial list head or tail, no unsafe index.
-leg2=$(hits $pat_partial $all_dirs)
+# These are OCaml source rules.  Brisk wildcard arms are valid language
+# syntax, so '*.ml' retains every source directory while excluding fixtures.
+leg2=""
+if [[ ${#all_dirs} -gt 0 ]]; then
+  leg2=$(search -n -U --glob '*.ml' -- $pat_partial $all_dirs)
+fi
 report_empty "no-wildcard-no-partial" "$leg2"
 
 # Leg 3:  no mutable state in the core or the machine, with two disclosed

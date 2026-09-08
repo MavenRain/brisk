@@ -1,0 +1,5 @@
+let unpack v = match (v : < full : { a : int, b : int, a : bool }, skip : int >) with | < full r > -> let rest = { r - a } in r.b + (if rest.a then 10 else 20) | < skip n > -> n + 100
+let read v = match (v : < skip : int, full : { b : int, a : int, a : bool } >) with | < skip n > -> n | whole -> unpack whole
+let a = print_int (read (< full { a = 1, a = true, b = 7 } >))
+let b = print_int (read (< full { b = 8, a = 2, a = false } >))
+let main = print_int (read (< skip 3 >))

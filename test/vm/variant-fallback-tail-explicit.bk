@@ -1,0 +1,5 @@
+(* The explicit arm remains in tail position alongside a whole-value fallback. *)
+let read v = match (v : < stop : int, go : { a : int, b : int } >) with | < stop n > -> n + 10 | < go r > -> r.b
+let rec walk count v = match (v : < go : { b : int, a : int }, stop : int >) with | < go payload > -> if count == 0 then payload.b else walk (count - 1) (< go payload >) | whole -> read whole
+let a = print_int (walk 100000 (< go { a = 1, b = 7 } >))
+let main = print_int (walk 3 (< stop 8 >))

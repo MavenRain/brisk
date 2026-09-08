@@ -1,0 +1,4 @@
+let choose v = match (v : < skip : int, full : { b : int, a : int } >) with | < skip n > -> < full { a = n, b = n + 10 } > | whole -> whole
+let read v = match (v : < full : { a : int, b : int }, skip : int >) with | < full r > -> r.b | < skip n > -> n + 100
+let a = print_int (read (choose (< skip 3 >)))
+let main = print_int (read (choose (< full { a = 1, b = 7 } >)))

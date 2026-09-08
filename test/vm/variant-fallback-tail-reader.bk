@@ -1,0 +1,2 @@
+let rec walk count r = match (r.tag : < go : int, stop : int >) with | < go n > -> if count == 0 then n + r.extra else walk (count - 1) r | whole -> 0
+let main = print_int (walk 100000 { extra = 5, tag = < go 7 >, pad = 1 })

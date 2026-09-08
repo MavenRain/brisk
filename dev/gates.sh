@@ -230,12 +230,12 @@ leg_suite_check () {
 # must match its stdout golden.  The floor protects the regression corpus.
 # Lowering refusals must parse and check before matching their diagnostics.
 # The run list must emit and execute all twenty-two instructions, and
-# tailrec and every named deep result-layout fixture must use at most 64
+# tailrec and every named deep recursion fixture must use at most 64
 # stack slots.  Their explicit names prevent unrelated additions from
 # masking a removed regression.
 leg_suite_vm () {
   local out code line n r s k m census stack peak fixture tail_fixture
-  local main_floor=134
+  local main_floor=149
   local tail_files=(
     $ROOT/test/vm/tailrec.bk
     $ROOT/test/vm/tail-record-if.bk
@@ -260,6 +260,9 @@ leg_suite_vm () {
     $ROOT/test/vm/group-result-four-member.bk
     $ROOT/test/vm/group-result-record-of-function.bk
     $ROOT/test/vm/group-boundary-captured-outer-typevar.bk
+    $ROOT/test/vm/variant-fallback-tail-explicit.bk
+    $ROOT/test/vm/variant-fallback-tail-whole.bk
+    $ROOT/test/vm/variant-fallback-tail-reader.bk
   )
   out=$(zsh $ROOT/dev/pin-dune.sh dune build @all 2>&1)
   code=$?
@@ -280,6 +283,18 @@ leg_suite_vm () {
     $ROOT/test/vm/group-boundary-heterogeneous-record-duplicates.bk
     $ROOT/test/vm/group-boundary-heterogeneous-variant-duplicates.bk
     $ROOT/test/vm/group-boundary-open-reader-nested-fixed.bk
+    $ROOT/test/vm/variant-fallback-closure.bk
+    $ROOT/test/vm/variant-fallback-dispatch.bk
+    $ROOT/test/vm/variant-fallback-effects.bk
+    $ROOT/test/vm/variant-fallback-literal-bool-unit.bk
+    $ROOT/test/vm/variant-fallback-literal-int.bk
+    $ROOT/test/vm/variant-fallback-literal-string.bk
+    $ROOT/test/vm/variant-fallback-occurrences.bk
+    $ROOT/test/vm/variant-fallback-payload-order.bk
+    $ROOT/test/vm/variant-fallback-result.bk
+    $ROOT/test/vm/variant-fallback-stack.bk
+    $ROOT/test/vm/variant-fallback-variable-first.bk
+    $ROOT/test/vm/variant-fallback-wildcard-first.bk
   )
   for fixture in $named_files; do
     if [[ ! -f $fixture || ! -f ${fixture:r}.out ]]; then
@@ -288,7 +303,18 @@ leg_suite_vm () {
     fi
   done
   local refused=($ROOT/test/lower-neg/*.bk(N))
-  if [[ ${#refused} -lt 10 ]]; then
+  local named_refusals=(
+    $ROOT/test/lower-neg/variant-match-open-tail.bk
+    $ROOT/test/lower-neg/variant-match-nested-pattern.bk
+    $ROOT/test/lower-neg/variant-match-record-pattern.bk
+  )
+  for fixture in $named_refusals; do
+    if [[ ! -f $fixture || ! -f ${fixture:r}.err ]]; then
+      print -r -- "FAIL SUITE-VM named lowering refusal or diagnostic missing: $fixture"
+      return 1
+    fi
+  done
+  if [[ ${#refused} -lt 13 ]]; then
     print -r -- "FAIL SUITE-VM missing lowering refusals"
     return 1
   fi

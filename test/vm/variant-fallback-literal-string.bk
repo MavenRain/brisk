@@ -1,0 +1,6 @@
+let unpack v = match (v : < text : string, code : int >) with | < text s > -> string_length s + 10 | < code n > -> n + 20
+let read v = match (v : < text : string, code : int >) with | < text "a" > -> 1 | < text "bb" > -> 2 | whole -> unpack whole
+let a = print_int (read (< text "a" >))
+let b = print_int (read (< text "bb" >))
+let c = print_int (read (< text "ccc" >))
+let main = print_int (read (< code 4 >))
